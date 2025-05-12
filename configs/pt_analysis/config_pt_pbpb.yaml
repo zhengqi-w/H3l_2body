@@ -1,0 +1,550 @@
+mc: False
+is_trigger: False
+calibrate_he_momentum: False
+absorption_histo_file: "../results/absorption/absorption_histos_x1.5_pt_cen_50_80.root"
+# absorption_histo_file: ''
+event_loss: 1
+signal_loss: 1
+absorption_syst: [0,0,0,0,0,0,0]
+input_files_data: 
+  [
+  "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AO2D.root",
+  ]
+input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"]
+input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
+output_dir: "../results/ep4/"
+output_file: "pt_analysis_pbpb"
+
+# cen_bins: [0,5]
+# pt_bins: [2, 3, 3.5, 4, 4.5, 5, 6, 8]
+# cen_bins: [5,10]
+# pt_bins: [2, 3, 3.5, 4, 4.5, 5, 6, 8]
+# cen_bins: [10,30]
+# pt_bins: [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
+# cen_bins: [30,50]
+# pt_bins: [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
+cen_bins: [50,80]
+pt_bins: [2, 2.5, 3, 3.5, 4, 4.5, 5, 8]
+
+bkg_fit_func: "pol2"
+signal_fit_func: "dscb"
+is_matter: "both"
+spectra_var: "fPt"
+n_bins_mass_data: 40
+n_bins_mass_mc: 80
+
+sigma_range_mc_to_data: [[1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5]]
+
+#selection for cen 0-5
+# selection:
+#   [
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     # {
+#     # "fPt": "fPt > 2",
+#     # "fCt": "fCt > 1",
+#     # "fCosPA": "fCosPA > 0.9999",
+#     # "fNSigmaHe": "fNSigmaHe > -3",
+#     # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     # #"fNTPCclusHe": "fNTPCclusHe > 90",
+#     # "fTPCmomHe": "fTPCmomHe > 1",
+#     # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     # #"fTPCChi2He": "fTPCChi2He > 0.5",
+#     # },
+#   ]
+
+# selection for cen 5-10
+# selection:
+#   [
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9999",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     # {
+#     # "fPt": "fPt > 2",
+#     # "fCt": "fCt > 1",
+#     # "fCosPA": "fCosPA > 0.9999",
+#     # "fNSigmaHe": "fNSigmaHe > -3",
+#     # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     # #"fNTPCclusHe": "fNTPCclusHe > 90",
+#     # "fTPCmomHe": "fTPCmomHe > 1",
+#     # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     # #"fTPCChi2He": "fTPCChi2He > 0.5",
+#     # },
+#   ]
+
+# selection for cen 10-30
+# selection:
+#   [
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9997",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     # {
+#     # "fPt": "fPt > 2",
+#     # "fCt": "fCt > 1",
+#     # "fCosPA": "fCosPA > 0.9995",
+#     # "fNSigmaHe": "fNSigmaHe > -3",
+#     # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     # #"fNTPCclusHe": "fNTPCclusHe > 90",
+#     # "fTPCmomHe": "fTPCmomHe > 1",
+#     # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     # #"fTPCChi2He": "fTPCChi2He > 0.5",
+#     # },
+#   ]
+
+# selection for cen 30-50
+# selection:
+#   [
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     {
+#     "fPt": "fPt > 2",
+#     "fCt": "fCt > 1",
+#     "fCosPA": "fCosPA > 0.9995",
+#     "fNSigmaHe": "fNSigmaHe > -3",
+#     "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     "fNTPCclusHe": "fNTPCclusHe > 90",
+#     "fTPCmomHe": "fTPCmomHe > 1",
+#     "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     "fTPCChi2He": "fTPCChi2He > 0.5",
+#     },
+#     # {
+#     # "fPt": "fPt > 2",
+#     # "fCt": "fCt > 1",
+#     # "fCosPA": "fCosPA > 0.9995",
+#     # "fNSigmaHe": "fNSigmaHe > -3",
+#     # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+#     # #"fNTPCclusHe": "fNTPCclusHe > 90",
+#     # "fTPCmomHe": "fTPCmomHe > 1",
+#     # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+#     # #"fTPCChi2He": "fTPCChi2He > 0.5",
+#     # },
+#   ]
+
+
+# # selection for cen 50-80
+selection:
+  [
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    {
+    "fPt": "fPt > 2",
+    "fCt": "fCt > 1",
+    "fCosPA": "fCosPA > 0.9992",
+    "fNSigmaHe": "fNSigmaHe > -3",
+    "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    "fNTPCclusHe": "fNTPCclusHe > 90",
+    "fTPCmomHe": "fTPCmomHe > 1",
+    "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    "fTPCChi2He": "fTPCChi2He > 0.5",
+    },
+    # {
+    # "fPt": "fPt > 2",
+    # "fCt": "fCt > 1",
+    # "fCosPA": "fCosPA > 0.999",
+    # "fNSigmaHe": "fNSigmaHe > -3",
+    # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    # "fNTPCclusHe": "fNTPCclusHe > 90",
+    # "fTPCmomHe": "fTPCmomHe > 1",
+    # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    # "fTPCChi2He": "fTPCChi2He > 0.5",
+    # },
+    # {
+    # "fPt": "fPt > 2",
+    # "fCt": "fCt > 1",
+    # "fCosPA": "fCosPA > 0.999",
+    # "fNSigmaHe": "fNSigmaHe > -3",
+    # "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    # "fNTPCclusHe": "fNTPCclusHe > 90",
+    # "fTPCmomHe": "fTPCmomHe > 1",
+    # "fAvgClusterSizeHe": "fAvgClusterSizeHe > 4.",
+    # "fTPCChi2He": "fTPCChi2He > 0.5",
+    # },
+  ]
+
+
+do_syst: True
+n_trials: 200
+bkg_fit_func_syst: ["pol1", "expo"]
+signal_fit_func_syst: ["dscb"]
+cut_dict_syst:
+  {
+    "fCosPA": {"cut_greater": True, "cut_list": [0.999, 0.9995, 50]},
+     "fCt": {"cut_greater": True, "cut_list": [0.8, 1.5, 50]},
+     "fNSigmaHe": {"cut_greater": True, "cut_list": [-2.5, -2.5, 1]},
+      "fTPCsignalPi": {"cut_greater": False, "cut_list": [1000, 1000, 1]},
+    #  "fDcaV0Daug": {"cut_greater": False, "cut_list": [0.1, 0.5, 20]}
+  }
+

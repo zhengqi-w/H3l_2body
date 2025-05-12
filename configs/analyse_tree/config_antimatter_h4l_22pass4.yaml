@@ -1,0 +1,26 @@
+mc: False
+is_h4l: True
+input_files:
+  [
+    "/data3/fmazzasc/hyp_run_3/pp2023/skimmed/AO2D.root",
+    # "/data3/fmazzasc/hyp_run_3/pp2022/LHC22_highIR_thin_custom/AO2D.root",
+    "/data3/fmazzasc/hyp_run_3/pp2024/ag/AO2D.root",
+    "/data3/fmazzasc/hyp_run_3/pp2024/aj/AO2D.root",
+    "/data3/fmazzasc/hyp_run_3/pp2024/af/AO2D.root",
+    "/data3/fmazzasc/hyp_run_3/pp2024/al/AO2D.root"
+  ]
+output_dir: "../results/"
+output_file: "HypertritonResults_antimatter_h4l_thin_custom"
+selection:
+  {
+    "fAvgClSizeCosLambda": "fAvgClSizeCosLambda > 5",
+    "fPt" : "fPt>1. and fPt < 5",
+    "fCosPA" : "fCosPA>0.99",
+    "fNSigmaHe": "fNSigmaHe>1.",
+    "fNTPCclusHe": "fNTPCclusHe > 100",
+    "fTPCsignalPi": "fTPCsignalPi<1000"
+  }
+is_matter: "antimatter"
+calibrate_he_momentum: True
+skip_out_tree: True
+do_signal_extraction: True

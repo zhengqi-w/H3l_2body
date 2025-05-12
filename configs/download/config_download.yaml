@@ -1,0 +1,4 @@
+hyperloop_path: '/alice/cern.ch/user/a/alihyperloop/jobs/0083/hy_837171/AOD/'
+local_path: '/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep3'
+run_period : 'LHC23_PbPb_pass4'
+

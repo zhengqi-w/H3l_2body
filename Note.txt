@@ -1,0 +1,62 @@
+```absorption_histo_mat.SetDirectory(0) 
+   在 ROOT 框架中，SetDirectory(0) 是用来控制 内存管理 的一个方法。它的作用是将一个对象（如直方图）从当前的 TFile 或 TDirectory 分离出来，确保该对象在关闭文件后仍然存在。
+
+```it_range = [pt_bins[0], pt_bins[-1]]
+   pt_bins[-1]是从右往左索引-1是右边最后一个元素
+
+```bin_sel = f'{self.var} > {bin[0]} & {self.var} < {bin[1]}'
+   在 Python 中，f'' 是一种格式化字符串的用法，也称为f-string，从 Python 3.6 版本开始引入。它允许在字符串中直接嵌入表达式，并将这些表达式的值插入到字符串中，非常简洁方便。
+   结果列为 bin_sel = 'pt > 0.5 & pt < 1.0'
+
+```if isinstance(self.selection_string, list):
+   isinstance() 是 Python 的一个内置函数，用于检查某个对象是否是特定类型或类的实例。它返回一个布尔值：如果对象是给定类型或类的实例，返回 True，否则返回 False。
+
+```self.efficiency.append(eff)
+   append() 是 Python 中列表 (list) 对象的一个内置方法，用于向列表的末尾添加元素。它将给定的元素附加到列表的末尾，并且不会返回值（即，它修改的是原始列表）。
+
+```for i, m in enumerate(np.sort(np.unique(new_data.T[labels=='fMass']))[:4]):
+   The enumerate() function creates an iterator that returns both the index (i) and the value (m) of each unique mass value in the sorted list.
+   i represents the index (from 0 to 3, since we are slicing the first 4 unique mass values).
+
+```plt.errorbar(x_point, counts, yerr=np.sqrt(counts), fmt='.', ecolor='k', color='k', elinewidth=1., label='Data') 
+   x: 横坐标数据。
+   y: 纵坐标数据。
+   xerr: x 轴误差，可以是一个数值、一个数组或一个表示误差上下界的数组。
+   yerr: y 轴误差，和 xerr 类似。
+   fmt: 数据点的显示格式，格式类似于 plot 函数，如 '.', 'o', '-' 等。
+   ecolor: 误差条的颜色，可以接受颜色名称、RGB 值等。
+   elinewidth: 误差条的线宽。
+   capsize: 误差条顶端的帽状部分的长度。
+   capthick: 误差条帽的厚度。
+   barsabove: 布尔值，设置是否将误差条绘制在数据点的上方（默认为 False，即在数据点的后面绘制）。
+   lolims, uplims, xlolims, xuplims: 分别为下限、上限误差的布尔标志，如果为 True，表示误差为单侧。
+   errorevery: 每隔多少个点绘制一个误差条。
+   label: 为误差条和数据点指定图例标签。
+   alpha: 透明度，值在 0 到 1 之间。
+   markersize: 数据点的大小。
+
+```signal = integrate.quad(gaus_function, fit_range[0], fit_range[1], args=(popt[2], popt[3], popt[4]))[0] / 0.00225
+   integrate.quad(gaus_function, fit_range[0], fit_range[1], args=(popt[2], popt[3], popt[4])):
+   integrate.quad 是 scipy 库中的一个数值积分函数，能够对一个函数在指定区间内进行积分。
+   gaus_function 是你要进行积分的高斯函数。
+   fit_range[0] 和 fit_range[1] 是积分的上下限，代表在这个范围内对高斯函数进行积分。
+   args=(popt[2], popt[3], popt[4]) 用于传递给 gaus_function 函数的参数，这些参数可能分别是高斯函数的幅度、均值、标准差，依次由 popt[2], popt[3], 和 popt[4] 代表。这些参数是在之前使用 curve_fit 进行拟合后得到的最优拟合参数。
+   integrate.quad 返回两个值：第一个是积分的结果，第二个是积分误差。这里使用 [0] 只提取积分结果。
+
+```cut_arr = np.linspace(start, end, num)
+    使用 np.linspace 函数在 start 和 end 之间均匀生成 num 个值，形成 cut_arr。
+
+```combos = list(product(*list(cut_string_dict.values())))
+   product 是 itertools 库的一个函数，用于计算笛卡尔积。
+   *list(cut_string_dict.values()) 使用解包，将每个变量的条件列表作为 product 的参数。
+   product 将计算这些列表的所有可能组合。
+   list(...) 将 product 的结果转化为一个列表 每个元素是一个元组，包含所有变量的一个特定组合，例如 ("fCosPA > 0.98", "fPt > 0.8", "fNSigmaHe > -2.5", "fTPCsignalPi < 1000")。
+
+```combo_random_indices = np.random.randint(len(combos), size=(n_trials, len(pt_bins) - 1))
+   np.random.randint(len(combos), size=(n_trials, len(pt_bins) - 1))：
+   np.random.randint(len(combos)) 随机生成一个整数，范围是 [0, len(combos)]，表示 combos 列表中的一个索引。
+   size=(n_trials, len(pt_bins) - 1) 定义了生成随机整数的矩阵大小。
+   n_trials 是实验的次数或需要随机选择的次数。
+   len(pt_bins) - 1 表示每个实验中要选择的组合数量（例如，和某些 pT 区间相关的次数）。
+   combo_random_indices 是一个二维数组，大小为 (n_trials, len(pt_bins) - 1)。
+   每一行对应一次实验，包含 len(pt_bins) - 1 个随机选择的组合索引。

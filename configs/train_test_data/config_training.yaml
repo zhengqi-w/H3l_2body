@@ -1,0 +1,52 @@
+do_training: True
+do_application: True
+calibrate_he_momentum: False
+
+input_data_path: ['/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AO2D.root']
+input_mc_path: '/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root'
+input_AnalysisResults_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
+# input_absorption_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/absorption"
+input_absorption_file_path: ''
+input_H3l_BWFit_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/H3l_2body_spectrum/utils/H3L_BWFit.root"
+output_base_dir : '../results/ep4/training_test'
+
+#cen_bins: [0,5]
+#pt_bins: [2, 3, 3.5, 4, 4.5, 5, 6, 8]
+
+cen_pt_bins_dic:
+  "30_50": [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
+  "0_5":  []
+  "5_10": []
+  "10_30": []
+  #"30_50": []
+  "50_80": []
+
+# cen_pt_bins_dic:
+#   "0_5":  [2, 3, 3.5, 4, 4.5, 5, 6, 8]
+#   "5_10": [2, 3, 3.5, 4, 4.5, 5, 6, 8]
+#   "10_30": [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
+#   "30_50": [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
+#   "50_80": [2, 2.5, 3, 3.5, 4, 4.5, 5, 8]
+
+
+
+training_preselections: 'fPt>1 and fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99 and fCt<40'
+training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe','fCt']
+test_set_size: 0.5
+background_over_signal_max: 6
+random_state: 42
+opean_NSigmaH3_signal_shift: True
+
+BDT_values_test: [-5,-4,-3,-2,-1,0,1,2,3,4,5] 
+
+
+hyperparams:
+  max_depth: 5 # 5
+  min_split_loss: 1.5 # 0.7
+  learning_rate: 0.05
+  n_estimators: 800
+  min_child_weight: 3 # 3
+  subsample: 0.70
+  colsample_bytree: 0.73
+  tree_method: 'hist'
+  seed: 42
