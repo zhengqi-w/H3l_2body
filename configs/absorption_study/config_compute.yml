@@ -1,2 +1,2 @@
-pt_bins: [2, 2.5, 3, 3.5, 4, 4.5, 5, 8]
-output_file_name: '../../results/absorption/absorption_histos_x1.5_pt_cen_50_80.root'
+pt_bins: [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 8]
+output_file_name: '../../results/absorption/absorption_histos_x1.5_pt_cen_30_50_apass5.root'

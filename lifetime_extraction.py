@@ -7,10 +7,14 @@ import os
 import yaml
 import matplotlib.pyplot as plt
 from math import exp, sqrt, pi, gamma
+from pathlib import Path
+
+from signal_extraction import SignalExtraction
 
 from scipy.stats import norm, expon, crystalball
 from scipy.special import erf, eval_chebyt
 from scipy.integrate import quad
+from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import medfilt
@@ -40,7 +44,9 @@ sys.path.append('utils')
 import utils as utils
 kOrangeC  = ROOT.TColor.GetColor('#ff7f00')
 
-
+def gauss_pol3(x, A, mu, sigma, B, C, D, E):
+    return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)) + B * x**3 + C * x**2 + D * x + E
+    
 ### def of the python signal and bkg pdf
 def double_crystalball(x, mu, sigma, alpha1, n1, alpha2, n2, xmin=None, xmax=None):
     """
@@ -155,6 +161,75 @@ def normalized_expon(ct, tau, ct_range=None):
     
     return pdf 
 
+def continuous_efficiency_corrected_expon(
+    ct_bins: np.ndarray,
+    efficiency: np.ndarray,
+    tau: float,
+    ct_range: tuple = None,
+    kind: str = "linear",  # 插值方法，可选 'linear', 'nearest', 'cubic' 等
+) -> callable:
+    """
+    生成一个连续修正后的指数 PDF 函数（适用于任意 ct）
+    
+    参数:
+        ct_bins     : bin 边界数组（shape=(n_bins+1,)）
+        efficiency  : 每个 bin 的效率修正（shape=(n_bins,)）
+        tau         : 平均寿命
+        ct_range    : 归一化范围 (ct_min, ct_max)，若为None则使用 ct_bins 的范围
+        kind        : 插值方法（默认 'linear'）
+    
+    返回:
+        一个可调用函数 corrected_pdf_func(ct)，返回修正后的 PDF 值
+    """
+    # 检查输入
+    assert len(ct_bins) == len(efficiency) + 1, "efficiency 的长度必须比 ct_bins 少 1"
+    
+    # 计算 bin 中心（用于插值）
+    bin_centers = 0.5 * (ct_bins[:-1] + ct_bins[1:])
+    
+    # 插值 efficiency（生成连续函数）
+    efficiency_interp = interp1d(
+        bin_centers,
+        efficiency,
+        kind=kind,
+        bounds_error=False,  # 允许 ct 超出范围
+        fill_value="extrapolate",  # 外推
+    )
+    
+    # 定义修正后的 PDF 函数
+    def corrected_pdf_func(ct):
+        # 计算原始 PDF
+        original_pdf = normalized_expon(ct, tau, ct_range)
+        
+        # 应用插值后的效率修正
+        corrected_pdf = original_pdf * efficiency_interp(ct)
+        
+        return corrected_pdf
+    
+    # 重新归一化（使积分=1）
+    if ct_range is None:
+        ct_range = (ct_bins[0], ct_bins[-1])
+    
+    # 计算归一化因子（数值积分）
+    norm_factor, _ = quad(corrected_pdf_func, ct_range[0], ct_range[1], limit=100)
+    
+    # 返回归一化后的函数
+    def normalized_corrected_pdf(ct):
+        return corrected_pdf_func(ct) / norm_factor
+    
+    return normalized_corrected_pdf
+
+def continuous_efficiency_corrected_expon_with_ct(
+    ct: float,
+    ct_bins: np.ndarray,
+    efficiency: np.ndarray,
+    tau: float,
+    ct_range: tuple = None,
+    kind: str = "linear",
+) -> float:
+    pdf_func = continuous_efficiency_corrected_expon(ct_bins, efficiency, tau, ct_range, kind)
+    return pdf_func(ct)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configure the parameters of the script.')
@@ -169,6 +244,7 @@ if __name__ == '__main__':
     
     input_file_name_data = config['input_file_name_data']
     input_file_name_mc = config['input_file_name_mc']
+    input_AnalysisResults_file_path = config['input_AnalysisResults_file_path']
     output_dir_name = config['output_dir_name']
     pt_bins = config['pt_bins']
     is_matter = config['is_matter']
@@ -178,11 +254,22 @@ if __name__ == '__main__':
     bkg_fit_func = config['bkg_fit_func']
     mass_range = config['mass_range']
     ct_range = config['ct_range']
+    nctbins_acceptance = config['nctbins_acceptance']
     sigma_range_mc_to_data = config['sigma_range_mc_to_data']
     nbins_plot_mc = config['nbins_plot_mc']
     nbins_plot_data = config['nbins_plot_data']
     save_fit_results = config['save_fit_results']
     selection = config['selection']
+    #BDT config
+    new_training = config['new_training']
+    opean_NSigmaH3_mc_shift = config['opean_NSigmaH3_mc_shift']
+    opean_NSigmaH3_data_shift = config['opean_NSigmaH3_data_shift']
+    training_variables = config['training_variables']
+    training_preselections = config['training_preselections']
+    random_state = config['random_state']
+    test_set_size = config['test_set_size']
+    hyperparams = config['hyperparams']
+    bkg_fraction_max = config['bkg_fraction_max']
     
     print('**********************************')
     print('    Running lifetime_extraction.py')
@@ -190,6 +277,7 @@ if __name__ == '__main__':
     print("----------------------------------")
     print("** Loading data and apply preselections **")
     
+    output_dir_name += f'/{pre_selection_method}'
     if not os.path.exists(output_dir_name):
         os.makedirs(output_dir_name)
     out_file = ROOT.TFile.Open(f'{output_dir_name}/H3l_lifetime_extraction.root', 'RECREATE')
@@ -220,7 +308,7 @@ if __name__ == '__main__':
     for i in range(len(pt_bins)-1):
         pt_min = pt_bins[i]
         pt_max = pt_bins[i+1]
-        bin_sel_data = f"fPt > {pt_min} & fPt < {pt_max}" + " and " + f"fMassH3L > {mass_range[0]} & fMassH3L < {mass_range[1]}"
+        bin_sel_data = f"fPt > {pt_min} & fPt < {pt_max}" # + " and " + f"fMassH3L > {mass_range[0]} & fMassH3L < {mass_range[1]}"
         bin_sel_mc = f"fAbsGenPt > {pt_min} & fAbsGenPt < {pt_max}"
         if is_matter == 'matter':
             bin_sel_data += ' and fIsMatter == True'
@@ -229,6 +317,28 @@ if __name__ == '__main__':
             bin_sel_data += 'and fIsMatter == False'
         bin_data_hdl = data_hdl.apply_preselections(bin_sel_data, inplace = False)
         bin_mc_hdl = mc_hdl.apply_preselections(bin_sel_mc, inplace = False)
+        ### ct resulution
+        df_bin_mc = bin_mc_hdl._full_data_frame
+        df_bin_mc['Delta_Ct'] = df_bin_mc['fGenCt'] - df_bin_mc['fCt']
+        bin_mc_hdl.set_data_frame(df_bin_mc)
+        fCt_array = bin_mc_hdl['fCt'].values
+        delta_ct_array = bin_mc_hdl['Delta_Ct'].values
+        plt.figure(figsize=(10, 8))
+        hb = plt.hexbin(
+            fCt_array,
+            delta_ct_array,
+            gridsize=200,           # 六边形网格密度
+            cmap='plasma',        # 颜色映射 'viridis', 'plasma', 'jet'
+            mincnt=1              # 忽略空 bin
+        )
+        plt.colorbar(hb, label='Counts')
+        plt.xlim(0, 40)
+        plt.xlabel('fCt')
+        plt.ylabel('fGenCt - fCt')
+        plt.title(f'Hexbin: fGenCt - fCt vs fCt pt range: {pt_min}-{pt_max}')
+        plt.grid(alpha=0.3)
+        plt.savefig(f'{output_dir_name}/ct_resulution_{pt_min}_{pt_max}.pdf')
+        plt.close()
         ### reweight mc spectrum 
         H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_0_10') # use 0-10 for calculation since this analysis is independent of centrality
         H3l_spectrum.SetRange(pt_min, pt_max)
@@ -237,9 +347,259 @@ if __name__ == '__main__':
         df_bin_mc = df_bin_mc.query("rej == 1")
         bin_mc_hdl.set_data_frame(df_bin_mc)
         ### end of reweighting
+        ### calculate the mc ct acceptance
+        bin_mc_reco_hdl = bin_mc_hdl.apply_preselections('fIsReco == 1', inplace=False)
+        bin_mc_hdl_gen_evsel = bin_mc_hdl.apply_preselections('fIsSurvEvSel==True', inplace=False)
+        acceptance_pt_bin = len(bin_mc_reco_hdl) / len(bin_mc_hdl_gen_evsel)
+        ct_bins = np.linspace(ct_range[i][0], ct_range[i][1], nctbins_acceptance + 1)
+        acceptance = np.zeros(len(ct_bins) - 1)
+        for i_ct in range(len(ct_bins) - 1):
+            lower = ct_bins[i_ct]
+            upper = ct_bins[i_ct+1]
+            bin_sel_ct = f"fGenCt > {lower} & fGenCt < {upper}"
+            eff_bin_mc_reco_hdl = bin_mc_reco_hdl.apply_preselections(bin_sel_ct, inplace=False)
+            eff_bin_mc_gen_evsel_hdl = bin_mc_hdl_gen_evsel.apply_preselections(bin_sel_ct, inplace=False)
+            bin_acceptance = len(eff_bin_mc_reco_hdl) / len(eff_bin_mc_gen_evsel_hdl) if len(eff_bin_mc_gen_evsel_hdl) != 0 else 0
+            acceptance[i_ct] = bin_acceptance
+        ctbin_centers = 0.5 * (ct_bins[:-1] + ct_bins[1:])
+        acceptance_interp = interp1d(
+        ctbin_centers,
+        acceptance,
+        kind="cubic",
+        bounds_error=False,
+        fill_value="extrapolate")
+        x_interp = np.linspace(min(ctbin_centers), max(ctbin_centers), 100)  # 100 个点
+        y_interp = acceptance_interp(x_interp)  # 插值结果
+        plt.figure(figsize=(8, 5))
+        plt.scatter(ctbin_centers, acceptance, color='red', label='Data ct acceptance', zorder=3)
+        plt.plot(x_interp, y_interp, color='blue', label='Interpolated acceptance', linewidth=2)
+        plt.xlabel("Bin Centers")
+        plt.ylabel("Acceptance($\epsilon$)")
+        plt.title(f"Original vs Interpolated ct acceptance pt: {pt_min}-{pt_max}")
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.savefig(f"{output_dir_name}/ct_acceptance_{pt_min}_{pt_max}.pdf")
+        plt.close()
+        ### preselection
+        #### ct selection
+        bin_data_hdl.apply_preselections(f"fCt > {ct_range[i][0]} & fCt < {ct_range[i][1]}", inplace=True)
         if pre_selection_method == 'BDT':
-            print("**Using Mechine Learning for H3l pre-selection**")
-            print(f'** Applying BDT to data for pt: {pt_min}-{pt_max}**')
+            ###BDT method code here
+            bdt_file = Path(f'{output_dir_name}/dataH_BDTapplied_{pt_min}_{pt_max}.parquet.gzip')
+            wp_file = Path(f"{output_dir_name}/working_point_data_frame_{pt_min}_{pt_max}.csv")
+            bin_data_hdl_pretrained = TreeHandler(bdt_file) if bdt_file.exists() else None
+            df_working_point_pretrained = pd.read_csv(wp_file) if wp_file.exists() else None
+            if bin_data_hdl_pretrained is not None and df_working_point_pretrained is not None and not new_training:
+                bin_data_hdl = bin_data_hdl_pretrained
+                df_working_point = df_working_point_pretrained
+            else:
+                print("**Using Mechine Learning for H3l pre-selection**")
+                print(f'** Applying BDT to data for pt: {pt_min}-{pt_max}**')
+                n_env = utils.getNEvents(input_AnalysisResults_file_path,False,0,99)
+                exp_signal_bin = n_env * H3l_spectrum.Integral(pt_min,pt_max) * acceptance_pt_bin * 1 * 0.25 * 2 * 1 * 1
+                df_bin_mc = bin_mc_hdl.get_data_frame()
+                df_bin_mc_train = df_bin_mc.copy()
+                bin_mc_hdl_train = TreeHandler()
+                bin_mc_hdl_train.set_data_frame(df_bin_mc_train)
+                df_bin_data = bin_data_hdl.get_data_frame()
+                df_bin_data_train = df_bin_data.copy()
+                bin_data_hdl_train = TreeHandler()
+                bin_data_hdl_train.set_data_frame(df_bin_data_train)
+                if training_preselections != '':
+                    bin_mc_hdl_train.apply_preselections(training_preselections, inplace=True)
+                    bin_data_hdl_train.apply_preselections(f"(fMassH3L<2.95 or fMassH3L>3.02) and {training_preselections}", inplace=True)
+                else:
+                    bin_data_hdl_train.apply_preselections(f"(fMassH3L<2.95 or fMassH3L>3.02)", inplace=True)
+                if opean_NSigmaH3_mc_shift:
+                    df_mcH = bin_mc_hdl_train.get_data_frame()
+                    df_mcH['fNSigmaHe'] = df_mcH['fNSigmaHe'] - df_mcH['fNSigmaHe'].mean()
+                    bin_mc_hdl_train.set_data_frame(df_mcH)
+                if opean_NSigmaH3_data_shift:
+                    df_dataH = bin_data_hdl_train.get_data_frame()
+                    x_dataH = df_dataH['fNSigmaHe'].values
+                    y_dataH = np.histogram(x_dataH, bins=100, density=True)[0]
+                    x_dataH_hist = np.histogram(x_dataH, bins=100, density=True)[1][:-1]
+                    init_guess = [max(y_dataH), 0, 1, 0, 0, 0, 0]
+                    popt, _ = curve_fit(gauss_pol3, x_dataH_hist, y_dataH, p0=init_guess, bounds=([-np.inf, -1, 0, -np.inf, -np.inf, -np.inf, -np.inf], [np.inf, 1, np.inf, np.inf, np.inf, np.inf, np.inf]))
+                    A, mu, sigma, B, C, D, E = popt
+                    plt.plot(x_dataH_hist, y_dataH, label='Background Data')
+                    plt.plot(x_dataH_hist, gauss_pol3(x_dataH_hist, *popt), label='Gaussian+Poly Fit', linestyle='--')
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.savefig(f"{output_dir_name}/Gauss_pol3_fit_data_df_{pt_min}_{pt_max}.pdf")
+                    plt.close()
+                    df_dataH['fNSigmaHe'] = df_dataH['fNSigmaHe'] - mu
+                    bin_data_hdl_train.set_data_frame(df_dataH)
+                utils.cut_elements_to_same_range(bin_mc_hdl_train,bin_data_hdl_train,['fDcaHe','fDcaPi'])
+                print("***---------------Training Info------------------***")
+                print("Origin MC events: ", len(bin_mc_hdl_train))
+                print("Origin Data events: ", len(bin_data_hdl_train))
+                if bkg_fraction_max != None:
+                    if(len(bin_data_hdl_train) > bkg_fraction_max * len(bin_mc_hdl_train)):
+                        bin_data_hdl_train.shuffle_data_frame(size=bkg_fraction_max*len(bin_mc_hdl_train), inplace=True, random_state=random_state)
+                print("------------------------------------------------")
+                print("Final MC events: ", len(bin_mc_hdl_train))
+                print("Final Data events: ", len(bin_data_hdl_train))
+                print("***---------------Training Info------------------***\n")
+                ###Start training process
+                train_test_data = au.train_test_generator([bin_mc_hdl_train, bin_data_hdl_train], [1,0], test_size=test_set_size, random_state=random_state)
+                train_features = train_test_data[0]
+                train_labels = train_test_data[1]
+                test_features = train_test_data[2]
+                test_labels = train_test_data[3]
+                ####Plot distributions and correlations
+                distr = pu.plot_distr([bin_mc_hdl_train, bin_data_hdl_train], training_variables + ["fMassH3L"], bins=100, labels=['Signal',"Background"],colors=["blue","red"], log=True, density=True, figsize=(18, 13), alpha=0.5, grid=False)
+                plt.subplots_adjust(left=0.06, bottom=0.06, right=0.99, top=0.96, hspace=0.55, wspace=0.55)
+                plt.savefig(f"{output_dir_name}/features_distributions_{pt_min}_{pt_max}.pdf", bbox_inches='tight')
+                plt.close()
+                corr = pu.plot_corr([bin_mc_hdl_train,bin_data_hdl_train], training_variables + ["fMassH3L"], ['Signal',"Background"])
+                corr[0].savefig(f"{output_dir_name}/correlations_mc_{pt_min}_{pt_max}.pdf", bbox_inches='tight')
+                corr[1].savefig(f"{output_dir_name}/correlations_data_{pt_min}_{pt_max}.pdf", bbox_inches='tight')
+                plt.close("all")
+                print("---------------------------------------------")
+                print("Data loaded. Training and testing ....")
+                model_hdl = ModelHandler(xgb.XGBClassifier(), training_variables)
+                model_hdl.set_model_params(hyperparams)
+                model_hdl.train_test_model(train_test_data, False, True)
+                y_pred_test = model_hdl.predict(test_features)
+                y_pred_train = model_hdl.predict(train_features)
+                print("Model trained and tested. Saving results ...")
+                bdt_out_plot = pu.plot_output_train_test(model_hdl, train_test_data, 100, True, ["Signal", "Background"], True, density=True)
+                bdt_out_plot.savefig(f"{output_dir_name}/bdt_output_{pt_min}_{pt_max}.pdf")
+                plt.close("all")
+                feature_importance_plot = pu.plot_feature_imp(test_features, test_labels, model_hdl, ["Signal", "Background"])
+                feature_importance_plot[0].savefig(f"{output_dir_name}/feature_importance_1_{pt_min}_{pt_max}.pdf")
+                feature_importance_plot[1].savefig(f"{output_dir_name}/feature_importance_2_{pt_min}_{pt_max}.pdf") 
+                plt.close("all")
+                ####plot score distirbutions
+                plt.hist(y_pred_test, bins=100, label='test set score_full sample', alpha=0.5, density=True)
+                plt.xlabel("test BDT_score")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(f"{output_dir_name}/testset_score_distribution_full_{pt_min}_{pt_max}.pdf")
+                plt.close()
+                plt.hist(y_pred_test[test_labels==0], bins=100, label='background', alpha=0.5, density=True)
+                plt.hist(y_pred_test[test_labels==1], bins=100, label='signal', alpha=0.5, density=True)
+                plt.xlabel("test BDT_score")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(f"{output_dir_name}/testset_score_distribution_split_{pt_min}_{pt_max}.pdf")
+                plt.close()
+                ####plot roc
+                roc_plot = pu.plot_roc_train_test(test_labels, y_pred_test, train_labels, y_pred_train)
+                roc_plot.savefig(f"{output_dir_name}/roc_test_vs_train_{pt_min}_{pt_max}.pdf")
+                plt.close("all")
+                ##efficiencies vs score
+                eff_arr = np.round(np.arange(0.5,0.99,0.005),3) # 1 means save with 1 digits after point
+                score_eff_arr = au.score_from_efficiency_array(test_labels, y_pred_test, eff_arr)
+                plt.plot(score_eff_arr, eff_arr, label='BDT_efficency_fixed_efficencyarray', marker='o')
+                plt.xlabel('BDT Score')
+                plt.ylabel('Efficiency')
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(f"{output_dir_name}/efficency_vs_model_output_{pt_min}_{pt_max}.pdf")
+                plt.close()
+                ### Applying the model to real data set
+                print("** Applying BDT model to data ...**")
+                bin_data_hdl.apply_model_handler(model_hdl, column_name="BDT_value")
+                bin_data_hdl.print_summary()
+                bin_data_hdl.write_df_to_parquet_files(f'dataH_BDTapplied_{pt_min}_{pt_max}', output_dir_name)
+                ####plot the model BDT result distribution
+                df = bin_data_hdl.get_data_frame()
+                hist = df.hist(column='BDT_value', bins=100, range=(-15,15), figsize=(12, 7), grid=False, density=False, alpha=0.6, label="BDT_value")
+                plt.xlabel('BDT score')
+                plt.ylabel('Counts')
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(f"{output_dir_name}/BDT_value_distribution_applied_{pt_min}_{pt_max}.pdf")
+                plt.close()
+                ###calculate the significance x BDT efficiency
+                raw_counts_arr = []
+                raw_counts_arr_err = []
+                significance_arr = []
+                significance_arr_err = []
+                s_b_ratio_arr = []
+                s_b_ratio_arr_err = []
+                chi2_arr = []
+                output_file = ROOT.TFile.Open(f"{output_dir_name}/training_spectrum_{pt_min}_{pt_max}.root", 'recreate')
+                output_dir_std = output_file.mkdir('std')
+                for i_eff in range(len(score_eff_arr)):
+                    score = score_eff_arr[i_eff]
+                    efficency = eff_arr[i_eff]
+                    input_bin_data_hdl = bin_data_hdl.apply_preselections(f"BDT_value > {score}",inplace = False)
+                    score_label = [f'{pt_min} #leq #it{{p}}_{{T}} < {pt_max} GeV/#it{{c}}',f'BDT_Score > {score}', f'BDT Efficiency: {efficency:.3f}']
+                    signal_extraction = SignalExtraction(input_bin_data_hdl, bin_mc_hdl)
+                    signal_extraction.bkg_fit_func = "pol2"
+                    signal_extraction.signal_fit_func = "dscb"
+                    signal_extraction.n_bins_data = 40
+                    signal_extraction.n_bins_mc = 80
+                    signal_extraction.n_evts = n_env
+                    signal_extraction.is_matter = is_matter
+                    signal_extraction.performance = False
+                    signal_extraction.is_3lh = True
+                    signal_extraction.out_file = output_dir_std
+                    signal_extraction.data_frame_fit_name = f'data_fit_BDT_score_{score}'
+                    signal_extraction.mc_frame_fit_name = f'mc_fit_pt_{pt_min}_{pt_max}'
+                    signal_extraction.additional_pave_text = score_label
+                    signal_extraction.sigma_range_mc_to_data = [1., 1.5]
+                    fit_stats = signal_extraction.process_fit()
+                    raw_counts_arr.append(fit_stats['signal'][0])
+                    raw_counts_arr_err.append(fit_stats['signal'][1])
+                    significance_arr.append(fit_stats['significance'][0])
+                    significance_arr_err.append(fit_stats['significance'][1])
+                    s_b_ratio_arr.append(fit_stats['s_b_ratio'][0])
+                    s_b_ratio_arr_err.append(fit_stats['s_b_ratio'][1])
+                    chi2_arr.append(fit_stats['chi2'])
+                exp_significance_array = [exp_signal_bin / np.sqrt(exp_signal_bin + (a / b)) for a, b in zip(raw_counts_arr, s_b_ratio_arr)]
+                bkg_3sigma_array = [a/b for a,b in zip(raw_counts_arr, s_b_ratio_arr)]
+                df_working_point = pd.DataFrame({
+                    'exp_significance': exp_significance_array,
+                    'raw_counts': raw_counts_arr,
+                    'raw_counts_err': raw_counts_arr_err,
+                    'bkg_3sigma': bkg_3sigma_array,
+                    'BDT_efficiency': eff_arr,
+                    'BDT_score': score_eff_arr,
+                    'chi2': chi2_arr
+                })
+                df_working_point.to_csv(f"{output_dir_name}/working_point_data_frame_{pt_min}_{pt_max}.csv")
+            df_working_point = df_working_point[df_working_point['raw_counts'] != 0]
+            df_working_point = df_working_point.query('chi2 < 1.4 & raw_counts_err / raw_counts < 1')
+            df_working_point['product'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance']
+            max_row = df_working_point.loc[df_working_point['product'].idxmax()]
+            max_product = max_row['product']
+            max_efficiency = max_row['BDT_efficiency']
+            max_score = max_row['BDT_score']
+            plt.figure(figsize=(10, 6))
+            plt.scatter(
+                df_working_point['BDT_score'],
+                df_working_point['product'],
+                label='All Points'
+            )
+            plt.scatter(
+                max_score,
+                max_product,
+                color='red',
+                s=100,  # 点大小
+                label=f'Max: BDT_eff={max_efficiency:.2f}, Score={max_score:.2f}'
+            )
+            plt.annotate(
+                f'Max: ({max_score:.2f}, {max_product:.2f})',
+                xy=(max_score, max_product),
+                xytext=(10, 10),
+                textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                arrowprops=dict(arrowstyle='->')
+            )
+            plt.title(f'BDT_efficiency * exp_significance vs BDT_score pt: {pt_min}-{pt_max}')
+            plt.xlabel('BDT_score')
+            plt.ylabel('BDT_efficiency * exp_significance')
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            plt.savefig(f"{output_dir_name}/exp_significance_vs_BDT_score_{pt_min}_{pt_max}.pdf")
+            plt.close()
+            bin_data_hdl.apply_preselections(f"BDT_value > {max_score + 3}", inplace=True)
+        ###*****The End of BDT********
         elif pre_selection_method == 'topology':
             print("**Using Topology Cuts for H3l pre-selection**")
             print(f'** Applying Cuts to data for pt: {pt_min}-{pt_max}**')
@@ -247,7 +607,7 @@ if __name__ == '__main__':
             bin_data_hdl.apply_preselections(topology_cuts, inplace = True)
         ###Get data and mc related var arrays
         mass = ROOT.RooRealVar('m', inv_mass_string, mass_range[0], mass_range[1], 'GeV/c^{2}')
-        ct = ROOT.RooRealVar('ct', 'deacy length', ct_range[0], ct_range[1], 'cm')
+        ct = ROOT.RooRealVar('ct', 'deacy length', ct_range[i][0], ct_range[i][1], 'cm')
         mass_array = np.array(bin_data_hdl['fMassH3L'].values, dtype=np.float64)
         mass_array_mc = np.array(bin_mc_hdl['fMassH3L'].values, dtype=np.float64)
         ct_array = np.array(bin_data_hdl['fCt'].values, dtype=np.float64)
@@ -360,12 +720,14 @@ if __name__ == '__main__':
         c1_error = fit_pars_data.find('c1').getError()
         chi2_data = mass_frame_data.chiSquare('total', 'data')
         ndf_data = nbins_plot_data - fit_res_data.floatParsFinal().getSize()
+        low_3sigma = mu_value - 3*sigma_value
+        up_3sigma = mu_value + 3*sigma_value
         ##signal and bkg yields within 3 sigma
-        mass.setRange('signal', mu_value - 3*sigma_value, mu_value + 3*sigma_value)
+        mass.setRange('signal', low_3sigma, up_3sigma)
         signal_int = signal_pdf.createIntegral(ROOT.RooArgSet(mass), ROOT.RooArgSet(mass), 'signal')
         signal_yield = signal_int.getVal() * signal_counts
         signal_yield_error = signal_int.getVal() * signal_counts_error
-        mass.setRange('bkg', mu_value - 3*sigma_value, mu_value + 3*sigma_value)
+        mass.setRange('bkg', low_3sigma, up_3sigma)
         bkg_int = bkg_pdf.createIntegral(ROOT.RooArgSet(mass), ROOT.RooArgSet(mass), 'bkg')
         bkg_yield = bkg_int.getVal() * background_counts
         bkg_yield_error = bkg_int.getVal() * background_counts_error
@@ -421,6 +783,9 @@ if __name__ == '__main__':
             plt.plot(x, bkg_fraction * bkg_pdf_data(x), "g-", label=f'Background pdf({bkg_fit_func})')
             plt.plot(x, signal_fraction * signal_pdf_data_py(x), "k--", label=f'Signal pdf({signal_fit_func}) python')
             plt.plot(x, bkg_fraction * bkg_pdf_data_py(x), "y--", label=f'Background pdf({bkg_fit_func}) python')
+            if pre_selection_method == 'topology':
+                plt.axvline(x=low_3sigma, color='m', linestyle='--', linewidth=1, label="3σ boundary")
+                plt.axvline(x=up_3sigma, color='m', linestyle='--', linewidth=1)
             plt.xlabel(inv_mass_string)
             plt.ylabel('Normalized counts')
             plt.legend()
@@ -430,22 +795,42 @@ if __name__ == '__main__':
             plt.savefig(f"{output_dir_name}/Data_mass_fit_pt_{pt_min}_{pt_max}.pdf")
             plt.close()
         ### def of the ct pdf
+        # def ct_pdf_data_py(ct, tau):
+        #     return continuous_efficiency_corrected_expon_with_ct(ct, ct_bins, efficiency, tau, ct_range = (ct_range[i][0], ct_range[i][1]), kind = 'cubic')
         def ct_pdf_data_py(ct, tau):
-            return normalized_expon(ct, tau, (ct_range[0], ct_range[1]))
+            return normalized_expon(ct, tau, ct_range = (ct_range[i][0], ct_range[i][1]))
+        ### only use 3sigma range for topology selection
+        if pre_selection_method == 'topology':
+            # mass_max = up_3sigma
+            # mass_min = low_3sigma
+            mass_max = mass_range[1]
+            mass_min = mass_range[0]
+        else:
+            mass_max = mass_range[1]
+            mass_min = mass_range[0]
+        bin_data_hdl.apply_preselections(f"fMassH3L > {mass_min} & fMassH3L < {mass_max}", inplace=True)
+        mass_array = np.array(bin_data_hdl['fMassH3L'].values, dtype=np.float64)
+        ct_array = np.array(bin_data_hdl['fCt'].values, dtype=np.float64)
+        ### for ct acceptance correction
+        ct_bin_indices = np.digitize(ct_array, bins=ct_bins) - 1
+        ct_bin_indices = np.clip(ct_bin_indices, 0, len(acceptance)-1) ##deling with the data out of ct poltting range 
+        ct_acceptance_array = acceptance[ct_bin_indices]
+        if len(ct_acceptance_array) != len(ct_array):
+            raise ValueError("Length of ct acceptance array does not match length of ct array")
         ### construct the sWeights
         if method == "sweights" or method == "both":
             sweight = SWeight(
                 mass_array,
                 [signal_pdf_data_py, bkg_pdf_data_py],
                 [signal_counts, background_counts],
-                [(mass_range[0], mass_range[1])],
+                [(mass_min, mass_max)],
                 method="summation",
                 compnames=("sig", "bkg"),
                 verbose=True,
                 checks=True,
             ) ## run quicker verbose = False and checks = False
             ### plot the weights distributions
-            x = np.linspace(mass_range[0], mass_range[1], 500)
+            x = np.linspace(mass_min, mass_max, 500)
             swp = sweight.get_weight(0, x)
             bwp = sweight.get_weight(1, x)
             plt.figure()
@@ -461,8 +846,9 @@ if __name__ == '__main__':
             plt.close()
             ### Fit weighted ct distribution
             sws = sweight(mass_array)
+            sws_accptance = np.where(ct_acceptance_array != 0, sws / ct_acceptance_array, sws)
             tmi_sw = Minuit(
-                make_weighted_negative_log_likelihood(ct_array, sws, ct_pdf_data_py),
+                make_weighted_negative_log_likelihood(ct_array, sws_accptance, ct_pdf_data_py),
                 tau=8,
             )
             tmi_sw.limits["tau"] = (0, 10)
@@ -470,7 +856,7 @@ if __name__ == '__main__':
             tmi_sw.hesse()
             ## corrections
             ncov = approx_cov_correct(
-                ct_pdf_data_py, ct_array, sws, tmi_sw.values, tmi_sw.covariance, verbose=False
+                ct_pdf_data_py, ct_array, sws_accptance, tmi_sw.values, tmi_sw.covariance, verbose=False
             )
             # second order correction
             hs = ct_pdf_data_py
@@ -500,7 +886,7 @@ if __name__ == '__main__':
                 [signal_pdf_data_py, bkg_pdf_data_py],
                 mass_array,
                 ct_array,
-                sws,
+                sws_accptance,
                 [signal_counts, background_counts],
                 tmi_sw.values,
                 tmi_sw.covariance,
@@ -520,13 +906,17 @@ if __name__ == '__main__':
             ct_hist_sweights.SetBinError(i + 1, tau_corrected)
             ### plot the ct distribution
             bins = 50
-            x_ct = np.linspace(ct_range[0], ct_range[1], 500)
-            plot_binned(ct_array, bins=bins, range=(ct_range[0], ct_range[1]), color='k', label='Data ct(signal + bkg)')
-            plot_binned(ct_array, bins=bins, range=(ct_range[0], ct_range[1]), weights=sws, color='C0', label='ct sWeights extracted')
-            tnorm = np.sum(sws) * (ct_range[1] - ct_range[0]) / bins
-            plt.plot(x_ct, tnorm * ct_pdf_data_py(x_ct, tau_value), "C0--", label="ct distribution (sWeights)")
+            x_ct = np.linspace(ct_range[i][0], ct_range[i][1], 500)
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), color='k', label='Data ct(signal + bkg)')
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), weights=sws, color='C1', label='ct sWeights without accptance correction')
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), weights=sws_accptance, color='C0', label='ct sWeights accptance corrected')
+            tnorm = np.sum(sws_accptance) * (ct_range[i][1] - ct_range[i][0]) / bins
+            plt.plot(x_ct, tnorm * ct_pdf_data_py(x_ct, tau_value), "C0--", label="ct distribution (sWeights) accptance weighted")
+            #plt.plot(x_ct, tnorm * normalized_expon(x_ct, tau_value, ct_range[i]), "C1:", label="ct distribution (sWeights) unweighted")
+            plt.ylim(5e-1, 2e3)
             plt.xlabel("ct (cm)")
             plt.ylabel("Events")
+            plt.yscale("log")
             plt.legend()
             plt.title(f"ct distribution (sWeights) pt {pt_min} - {pt_max}")
             plt.tight_layout()
@@ -542,12 +932,12 @@ if __name__ == '__main__':
             #     return m_density(m, *mi.values) / (mi.values['s'] + mi.values['b'] )
             
             # histogram:
-            # Im = np.histogram(mass_array, range=(mass_range[0], mass_range[1]))
+            # Im = np.histogram(mass_array, range=(mass_min, mass_max))
             
             # make the cow
-            cow = Cow((mass_range[0], mass_range[1]), signal_pdf_data_py, bkg_pdf_data_py, Im, verbose=True)
+            cow = Cow((mass_min, mass_max), signal_pdf_data_py, bkg_pdf_data_py, Im, verbose=True)
             ### plot the weights distributions
-            x = np.linspace(mass_range[0], mass_range[1], 500)
+            x = np.linspace(mass_min, mass_max, 500)
             swp = cow.get_weight(0, x)
             bwp = cow.get_weight(1, x)
             plt.figure()
@@ -563,8 +953,9 @@ if __name__ == '__main__':
             plt.close()
             ### Fit weighted ct distribution
             scow = cow(mass_array)
+            scow_accptance = np.where(ct_acceptance_array != 0, scow / ct_acceptance_array, scow)
             tmi_cow = Minuit(
-                make_weighted_negative_log_likelihood(ct_array, scow, ct_pdf_data_py),
+                make_weighted_negative_log_likelihood(ct_array, scow_accptance, ct_pdf_data_py),
                 tau=8,
             )
             tmi_cow.limits["tau"] = (0, 10)
@@ -572,7 +963,7 @@ if __name__ == '__main__':
             tmi_cow.hesse()
             ## corrections
             ncov = approx_cov_correct(
-                ct_pdf_data_py, ct_array, scow, tmi_cow.values, tmi_cow.covariance, verbose=False
+                ct_pdf_data_py, ct_array, scow_accptance, tmi_cow.values, tmi_cow.covariance, verbose=False
             )
             # second order correction
             hs = ct_pdf_data_py
@@ -602,7 +993,7 @@ if __name__ == '__main__':
                 [signal_pdf_data_py, bkg_pdf_data_py],
                 mass_array,
                 ct_array,
-                scow,
+                scow_accptance,
                 [signal_counts, background_counts],
                 tmi_cow.values,
                 tmi_cow.covariance,
@@ -622,13 +1013,17 @@ if __name__ == '__main__':
             ct_hist_cows.SetBinError(i + 1, tau_corrected)
             ### plot the ct distribution
             bins = 50
-            x_ct = np.linspace(ct_range[0], ct_range[1], 500)
-            plot_binned(ct_array, bins=bins, range=(ct_range[0], ct_range[1]), color='k', label='Data ct(signal + bkg)')
-            plot_binned(ct_array, bins=bins, range=(ct_range[0], ct_range[1]), weights=scow, color='C0', label='ct COWs extracted')
-            tnorm = np.sum(scow) * (ct_range[1] - ct_range[0]) / bins
-            plt.plot(x_ct, tnorm * ct_pdf_data_py(x_ct, tau_value), "C0--", label="ct distribution (COWs)")
+            x_ct = np.linspace(ct_range[i][0], ct_range[i][1], 500)
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), color='k', label='Data ct(signal + bkg)')
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), weights=scow, color='C1', label='ct COWs without accptance correction')
+            plot_binned(ct_array, bins=bins, range=(ct_range[i][0], ct_range[i][1]), weights=scow_accptance, color='C0', label='ct COWs accptance corrected')
+            tnorm = np.sum(scow_accptance) * (ct_range[i][1] - ct_range[i][0]) / bins
+            plt.plot(x_ct, tnorm * ct_pdf_data_py(x_ct, tau_value), "C0--", label="ct distribution (COWs) accptance weighted")
+            #plt.plot(x_ct, tnorm * normalized_expon(x_ct, tau_value, ct_range[i]), "C1:", label="ct distribution (COWs) unweighted")
+            plt.ylim(5e-1, 2e3)
             plt.xlabel("ct (cm)")
             plt.ylabel("Events")
+            plt.yscale("log")
             plt.legend()
             plt.title(f"ct distribution (COWs) pt {pt_min} - {pt_max}")
             plt.tight_layout()

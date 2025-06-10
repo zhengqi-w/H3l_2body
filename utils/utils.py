@@ -388,6 +388,30 @@ def get_canvas(title, sizeX, sizeY, gridx, gridy, topMgn, botMgn, leftMgn, right
         c1.SetGridy()
     return c1
 
+def get_canvas_std(title, size, margin, gridopt, tickopt, border = None, fillcolor = None):
+    c1 = TCanvas(title, "", size[0], size[1])
+    c1.SetTopMargin(margin[0])
+    c1.SetBottomMargin(margin[1])
+    c1.SetLeftMargin(margin[2])
+    c1.SetRightMargin(margin[3])
+    if gridopt[0]:
+        c1.SetGridx()
+    if gridopt[1]:
+        c1.SetGridy()
+    if tickopt[0]:
+        c1.SetTickx(1)
+    if tickopt[1]:
+        c1.SetTicky(1)
+    if border:
+        c1.SetBorderMode(border[0])
+        c1.SetBorderSize(border[1])
+        c1.SetFrameBorderMode(border[2])
+        c1.SetFrameBorderSize(border[3])
+    if fillcolor:
+        c1.SetFillColor(fillcolor[0])
+        c1.SetFrameFillColor(fillcolor[1])
+    return c1
+
 def get_pad(name, xpos1, ypos1, xpos2, ypos2, topMar, botMar, leftMar, rightMar):
     tpad = TPad(name, "", xpos1, ypos1, xpos2, ypos2)
     tpad.SetFillColor(0)

@@ -1,16 +1,18 @@
 input_file_name_data: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AO2D.root"
 input_file_name_mc: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"
+input_AnalysisResults_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
 output_dir_name: "../results/ep4/lifetime"
 
 pt_bins: [2, 3.5, 5, 8]
 is_matter: "both"
-pre_selection_method: "topology" 
+pre_selection_method: "topology" # BDT or topology
 # sweights cows
 method: "both"
 signal_fit_func: "dscb"
 bkg_fit_func: "pol2"
-mass_range: [2.96, 3.04]
-ct_range: [0, 40]
+mass_range: [2.95, 3.05]
+ct_range: [[1, 35], [1, 30], [1, 25]]
+nctbins_acceptance: 50
 sigma_range_mc_to_data: [[1., 1.5], [1., 1.5], [1., 1.5]]
 nbins_plot_mc : 80
 nbins_plot_data : 40
@@ -18,11 +20,14 @@ save_fit_results: True
 
 do_sys: false
 
+new_training: false
+opean_NSigmaH3_mc_shift: true
+opean_NSigmaH3_data_shift: true
+training_preselections: 'fPt>1 and fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99 and fCt<40'
 training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe','fCt']
 test_set_size: 0.5
-background_over_signal_max: 6
+bkg_fraction_max: 6
 random_state: 42
-opean_NSigmaH3_signal_shift: True
 hyperparams:
   max_depth: 5 # 5
   min_split_loss: 1.5 # 0.7
