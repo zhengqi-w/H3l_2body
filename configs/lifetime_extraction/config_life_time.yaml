@@ -5,26 +5,30 @@ output_dir_name: "../results/ep4/lifetime"
 
 pt_bins: [2, 3.5, 5, 8]
 is_matter: "both"
-pre_selection_method: "topology" # BDT or topology
+pre_selection_method: "BDT" # BDT or topology
 # sweights cows
 method: "both"
 signal_fit_func: "dscb"
 bkg_fit_func: "pol2"
 mass_range: [2.95, 3.05]
-ct_range: [[1, 35], [1, 30], [1, 25]]
+ct_range: [[2, 35], [2, 30], [2, 25]]
 nctbins_acceptance: 50
 sigma_range_mc_to_data: [[1., 1.5], [1., 1.5], [1., 1.5]]
 nbins_plot_mc : 80
 nbins_plot_data : 40
 save_fit_results: True
+silent_mode: False
+eff_start: 0.5
+eff_end: 0.99
+neff_steps: 100
 
 do_sys: false
 
-new_training: false
+new_training: true
 opean_NSigmaH3_mc_shift: true
 opean_NSigmaH3_data_shift: true
 training_preselections: 'fPt>1 and fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99 and fCt<40'
-training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe','fCt']
+training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe']
 test_set_size: 0.5
 bkg_fraction_max: 6
 random_state: 42

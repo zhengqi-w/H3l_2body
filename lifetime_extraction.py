@@ -6,6 +6,8 @@ import argparse
 import os
 import yaml
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import xarray as xr
 from math import exp, sqrt, pi, gamma
 from pathlib import Path
 
@@ -161,6 +163,8 @@ def normalized_expon(ct, tau, ct_range=None):
     
     return pdf 
 
+###=================below is the method for extrapolation of accptance bin to continuous func===========================
+
 def continuous_efficiency_corrected_expon(
     ct_bins: np.ndarray,
     efficiency: np.ndarray,
@@ -229,7 +233,7 @@ def continuous_efficiency_corrected_expon_with_ct(
 ) -> float:
     pdf_func = continuous_efficiency_corrected_expon(ct_bins, efficiency, tau, ct_range, kind)
     return pdf_func(ct)
-
+###=================End of method for extrapolation of accptance bin to continuous func===========================
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configure the parameters of the script.')
@@ -260,6 +264,10 @@ if __name__ == '__main__':
     nbins_plot_data = config['nbins_plot_data']
     save_fit_results = config['save_fit_results']
     selection = config['selection']
+    silent_mode = config['silent_mode']
+    eff_start = config['eff_start']
+    eff_end = config['eff_end']
+    neff_steps = config['neff_steps']
     #BDT config
     new_training = config['new_training']
     opean_NSigmaH3_mc_shift = config['opean_NSigmaH3_mc_shift']
@@ -318,29 +326,46 @@ if __name__ == '__main__':
         bin_data_hdl = data_hdl.apply_preselections(bin_sel_data, inplace = False)
         bin_mc_hdl = mc_hdl.apply_preselections(bin_sel_mc, inplace = False)
         ### ct resulution
-        df_bin_mc = bin_mc_hdl._full_data_frame
-        df_bin_mc['Delta_Ct'] = df_bin_mc['fGenCt'] - df_bin_mc['fCt']
-        bin_mc_hdl.set_data_frame(df_bin_mc)
-        fCt_array = bin_mc_hdl['fCt'].values
-        delta_ct_array = bin_mc_hdl['Delta_Ct'].values
-        plt.figure(figsize=(10, 8))
-        hb = plt.hexbin(
-            fCt_array,
-            delta_ct_array,
-            gridsize=200,           # 六边形网格密度
-            cmap='plasma',        # 颜色映射 'viridis', 'plasma', 'jet'
-            mincnt=1              # 忽略空 bin
-        )
-        plt.colorbar(hb, label='Counts')
-        plt.xlim(0, 40)
-        plt.xlabel('fCt')
-        plt.ylabel('fGenCt - fCt')
-        plt.title(f'Hexbin: fGenCt - fCt vs fCt pt range: {pt_min}-{pt_max}')
-        plt.grid(alpha=0.3)
-        plt.savefig(f'{output_dir_name}/ct_resulution_{pt_min}_{pt_max}.pdf')
-        plt.close()
+        if not silent_mode:
+            df_bin_mc = bin_mc_hdl._full_data_frame
+            df_bin_mc.query("fCt > 0 and fCt < 40", inplace=True) # only 0-40 is considered
+            df_bin_mc['Resolution'] = 1 - (df_bin_mc['fGenCt'] - df_bin_mc['fCt']) / df_bin_mc['fCt']
+            fCt_array = df_bin_mc['fCt']
+            res_array = df_bin_mc['Resolution']
+            # plt.figure(figsize=(10, 8))
+            # hb = plt.hexbin(
+            #     fCt_array,
+            #     res_array,
+            #     gridsize=200,           # 六边形网格密度
+            #     cmap='plasma',        # 颜色映射 'viridis', 'plasma', 'jet'
+            #     mincnt=1              # 忽略空 bin
+            # )
+            # plt.colorbar(hb, label='Counts')
+            # plt.xlim(0, 40)
+            # plt.xlabel('fCt')
+            # plt.ylabel('fGenCt - fCt')
+            # plt.title(f'Hexbin: fGenCt - fCt vs fCt pt range: {pt_min}-{pt_max}')
+            # plt.grid(alpha=0.3)
+            ###=====here we use plt.hist2d=====
+            plt.hist2d(
+                fCt_array,
+                res_array,
+                bins=[500,500], 
+                cmap='jet',
+                norm=mcolors.LogNorm()
+                )
+            plt.colorbar(pad=0.01, aspect=25, label='Counts')
+            plt.xlabel('fCt (cm)')
+            plt.ylabel('R = (1 - (fGenCt - fCt) / fCt)')
+            plt.xticks(np.arange(0, 40, 1), rotation=45)
+            #plt.yticks(np.linspace(-20, 10, 300), rotation=45)
+            plt.ylim(-20, 10)
+            plt.grid(True, linestyle="--", alpha=0.3)
+            plt.title(f'2D histogram: Ct resulution vs fCt pt range: {pt_min}-{pt_max}')
+            plt.savefig(f'{output_dir_name}/ct_resulution_{pt_min}_{pt_max}.pdf')
+            plt.close()
         ### reweight mc spectrum 
-        H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_0_10') # use 0-10 for calculation since this analysis is independent of centrality
+        H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_30_50') # use 30-50 for calculation since this analysis is independent of centrality
         H3l_spectrum.SetRange(pt_min, pt_max)
         df_bin_mc = bin_mc_hdl.get_data_frame()
         utils.reweight_pt_spectrum(df_bin_mc, 'fAbsGenPt', H3l_spectrum)
@@ -361,25 +386,26 @@ if __name__ == '__main__':
             eff_bin_mc_gen_evsel_hdl = bin_mc_hdl_gen_evsel.apply_preselections(bin_sel_ct, inplace=False)
             bin_acceptance = len(eff_bin_mc_reco_hdl) / len(eff_bin_mc_gen_evsel_hdl) if len(eff_bin_mc_gen_evsel_hdl) != 0 else 0
             acceptance[i_ct] = bin_acceptance
-        ctbin_centers = 0.5 * (ct_bins[:-1] + ct_bins[1:])
-        acceptance_interp = interp1d(
-        ctbin_centers,
-        acceptance,
-        kind="cubic",
-        bounds_error=False,
-        fill_value="extrapolate")
-        x_interp = np.linspace(min(ctbin_centers), max(ctbin_centers), 100)  # 100 个点
-        y_interp = acceptance_interp(x_interp)  # 插值结果
-        plt.figure(figsize=(8, 5))
-        plt.scatter(ctbin_centers, acceptance, color='red', label='Data ct acceptance', zorder=3)
-        plt.plot(x_interp, y_interp, color='blue', label='Interpolated acceptance', linewidth=2)
-        plt.xlabel("Bin Centers")
-        plt.ylabel("Acceptance($\epsilon$)")
-        plt.title(f"Original vs Interpolated ct acceptance pt: {pt_min}-{pt_max}")
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.savefig(f"{output_dir_name}/ct_acceptance_{pt_min}_{pt_max}.pdf")
-        plt.close()
+        if not silent_mode:
+            ctbin_centers = 0.5 * (ct_bins[:-1] + ct_bins[1:])
+            acceptance_interp = interp1d(
+            ctbin_centers,
+            acceptance,
+            kind="cubic",
+            bounds_error=False,
+            fill_value="extrapolate")
+            x_interp = np.linspace(min(ctbin_centers), max(ctbin_centers), 100)  # 100 个点
+            y_interp = acceptance_interp(x_interp)  # 插值结果
+            plt.figure(figsize=(8, 5))
+            plt.scatter(ctbin_centers, acceptance, color='red', label='Data ct acceptance', zorder=3)
+            plt.plot(x_interp, y_interp, color='blue', label='Interpolated acceptance', linewidth=2)
+            plt.xlabel("ct (cm)")
+            plt.ylabel("Acceptance($\epsilon$)")
+            plt.title(f"Original vs Interpolated ct acceptance pt: {pt_min}-{pt_max}")
+            plt.legend()
+            plt.grid(True, linestyle='--', alpha=0.6)
+            plt.savefig(f"{output_dir_name}/ct_acceptance_{pt_min}_{pt_max}.pdf")
+            plt.close()
         ### preselection
         #### ct selection
         bin_data_hdl.apply_preselections(f"fCt > {ct_range[i][0]} & fCt < {ct_range[i][1]}", inplace=True)
@@ -395,10 +421,10 @@ if __name__ == '__main__':
             else:
                 print("**Using Mechine Learning for H3l pre-selection**")
                 print(f'** Applying BDT to data for pt: {pt_min}-{pt_max}**')
-                n_env = utils.getNEvents(input_AnalysisResults_file_path,False,0,99)
+                n_env = utils.getNEvents(input_AnalysisResults_file_path,False,0,80)
+                H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_30_50') # use 30-50 for calculation since this analysis is independent of centrality
                 exp_signal_bin = n_env * H3l_spectrum.Integral(pt_min,pt_max) * acceptance_pt_bin * 1 * 0.25 * 2 * 1 * 1
-                df_bin_mc = bin_mc_hdl.get_data_frame()
-                df_bin_mc_train = df_bin_mc.copy()
+                df_bin_mc_train = bin_mc_hdl.get_data_frame().copy()
                 bin_mc_hdl_train = TreeHandler()
                 bin_mc_hdl_train.set_data_frame(df_bin_mc_train)
                 df_bin_data = bin_data_hdl.get_data_frame()
@@ -422,18 +448,20 @@ if __name__ == '__main__':
                     init_guess = [max(y_dataH), 0, 1, 0, 0, 0, 0]
                     popt, _ = curve_fit(gauss_pol3, x_dataH_hist, y_dataH, p0=init_guess, bounds=([-np.inf, -1, 0, -np.inf, -np.inf, -np.inf, -np.inf], [np.inf, 1, np.inf, np.inf, np.inf, np.inf, np.inf]))
                     A, mu, sigma, B, C, D, E = popt
-                    plt.plot(x_dataH_hist, y_dataH, label='Background Data')
-                    plt.plot(x_dataH_hist, gauss_pol3(x_dataH_hist, *popt), label='Gaussian+Poly Fit', linestyle='--')
-                    plt.legend()
-                    plt.tight_layout()
-                    plt.savefig(f"{output_dir_name}/Gauss_pol3_fit_data_df_{pt_min}_{pt_max}.pdf")
-                    plt.close()
+                    if not silent_mode:
+                        plt.plot(x_dataH_hist, y_dataH, label='Background Data')
+                        plt.plot(x_dataH_hist, gauss_pol3(x_dataH_hist, *popt), label='Gaussian+Poly Fit', linestyle='--')
+                        plt.legend()
+                        plt.tight_layout()
+                        plt.savefig(f"{output_dir_name}/Gauss_pol3_fit_data_df_{pt_min}_{pt_max}.pdf")
+                        plt.close()
                     df_dataH['fNSigmaHe'] = df_dataH['fNSigmaHe'] - mu
                     bin_data_hdl_train.set_data_frame(df_dataH)
-                utils.cut_elements_to_same_range(bin_mc_hdl_train,bin_data_hdl_train,['fDcaHe','fDcaPi'])
+                print("Let's do some cutting to balance the var range for data and MC samples ...")
                 print("***---------------Training Info------------------***")
                 print("Origin MC events: ", len(bin_mc_hdl_train))
                 print("Origin Data events: ", len(bin_data_hdl_train))
+                utils.cut_elements_to_same_range(bin_mc_hdl_train,bin_data_hdl_train,['fDcaHe','fDcaPi'])
                 if bkg_fraction_max != None:
                     if(len(bin_data_hdl_train) > bkg_fraction_max * len(bin_mc_hdl_train)):
                         bin_data_hdl_train.shuffle_data_frame(size=bkg_fraction_max*len(bin_mc_hdl_train), inplace=True, random_state=random_state)
@@ -460,9 +488,9 @@ if __name__ == '__main__':
                 print("Data loaded. Training and testing ....")
                 model_hdl = ModelHandler(xgb.XGBClassifier(), training_variables)
                 model_hdl.set_model_params(hyperparams)
-                model_hdl.train_test_model(train_test_data, False, True)
-                y_pred_test = model_hdl.predict(test_features)
-                y_pred_train = model_hdl.predict(train_features)
+                model_hdl.train_test_model(train_test_data, False, output_margin = True) ###output_margin == True return the unnormalized score 
+                y_pred_test = model_hdl.predict(test_features, output_margin = True)
+                y_pred_train = model_hdl.predict(train_features, output_margin = True)
                 print("Model trained and tested. Saving results ...")
                 bdt_out_plot = pu.plot_output_train_test(model_hdl, train_test_data, 100, True, ["Signal", "Background"], True, density=True)
                 bdt_out_plot.savefig(f"{output_dir_name}/bdt_output_{pt_min}_{pt_max}.pdf")
@@ -490,8 +518,17 @@ if __name__ == '__main__':
                 roc_plot.savefig(f"{output_dir_name}/roc_test_vs_train_{pt_min}_{pt_max}.pdf")
                 plt.close("all")
                 ##efficiencies vs score
-                eff_arr = np.round(np.arange(0.5,0.99,0.005),3) # 1 means save with 1 digits after point
+                ###====fixed efficiency array=====####
+                #eff_arr = np.round(np.arange(0.5,0.99,0.005),3) # 1 means save with 1 digits after point
+                ###==below generate exponential efficiency array==####
+                x = np.linspace(0, 1, neff_steps)  # 均匀分布
+                exp_x = np.exp(-5 * x)  # 指数变换（-3 控制密集程度，越大越靠近 0.99）
+                exp_x_normalized = (exp_x - exp_x.min()) / (exp_x.max() - exp_x.min())  # 归一化到 [0, 1]
+                eff_arr = eff_start + (eff_end - eff_start) * exp_x_normalized  # 缩放到 [0.5, 0.99]
+                eff_arr = np.round(eff_arr, 4)                
                 score_eff_arr = au.score_from_efficiency_array(test_labels, y_pred_test, eff_arr)
+                ###====whole range of score====###
+                # score_eff_arr, eff_arr = au.bdt_efficiency_array(test_labels, y_pred_test, 100)
                 plt.plot(score_eff_arr, eff_arr, label='BDT_efficency_fixed_efficencyarray', marker='o')
                 plt.xlabel('BDT Score')
                 plt.ylabel('Efficiency')
@@ -514,91 +551,203 @@ if __name__ == '__main__':
                 plt.savefig(f"{output_dir_name}/BDT_value_distribution_applied_{pt_min}_{pt_max}.pdf")
                 plt.close()
                 ###calculate the significance x BDT efficiency
-                raw_counts_arr = []
-                raw_counts_arr_err = []
-                significance_arr = []
-                significance_arr_err = []
-                s_b_ratio_arr = []
-                s_b_ratio_arr_err = []
-                chi2_arr = []
-                output_file = ROOT.TFile.Open(f"{output_dir_name}/training_spectrum_{pt_min}_{pt_max}.root", 'recreate')
-                output_dir_std = output_file.mkdir('std')
-                for i_eff in range(len(score_eff_arr)):
-                    score = score_eff_arr[i_eff]
-                    efficency = eff_arr[i_eff]
+                ##============just simple functions curvefit + Minuit==================
+                def pol2(x, a, b, c):
+                    return a * x**2 + b * x + c
+                
+                def gauss(x, A, mu, sigma):
+                    return A * np.exp(-(x - mu)**2 / (2 * sigma**2))
+                
+                def combined_fit(x, a, b, c, A, mu, sigma):
+                    return pol2(x, a, b, c) + gauss(x, A, mu, sigma)
+                WP_BDT_score = []
+                WP_BDT_eff = []
+                WP_BKG_bkgcounts = []
+                WP_BKG_bkgcounts_up = []
+                WP_BKG_bkgcounts_down = []
+                WP_exp_significance = []
+                WP_exp_significance_up = []
+                WP_exp_significance_down = []
+                WP_chi2 = []              
+                for i_score in range(len(score_eff_arr)):
+                    score = score_eff_arr[i_score]
+                    efficency = eff_arr[i_score]
                     input_bin_data_hdl = bin_data_hdl.apply_preselections(f"BDT_value > {score}",inplace = False)
-                    score_label = [f'{pt_min} #leq #it{{p}}_{{T}} < {pt_max} GeV/#it{{c}}',f'BDT_Score > {score}', f'BDT Efficiency: {efficency:.3f}']
-                    signal_extraction = SignalExtraction(input_bin_data_hdl, bin_mc_hdl)
-                    signal_extraction.bkg_fit_func = "pol2"
-                    signal_extraction.signal_fit_func = "dscb"
-                    signal_extraction.n_bins_data = 40
-                    signal_extraction.n_bins_mc = 80
-                    signal_extraction.n_evts = n_env
-                    signal_extraction.is_matter = is_matter
-                    signal_extraction.performance = False
-                    signal_extraction.is_3lh = True
-                    signal_extraction.out_file = output_dir_std
-                    signal_extraction.data_frame_fit_name = f'data_fit_BDT_score_{score}'
-                    signal_extraction.mc_frame_fit_name = f'mc_fit_pt_{pt_min}_{pt_max}'
-                    signal_extraction.additional_pave_text = score_label
-                    signal_extraction.sigma_range_mc_to_data = [1., 1.5]
-                    fit_stats = signal_extraction.process_fit()
-                    raw_counts_arr.append(fit_stats['signal'][0])
-                    raw_counts_arr_err.append(fit_stats['signal'][1])
-                    significance_arr.append(fit_stats['significance'][0])
-                    significance_arr_err.append(fit_stats['significance'][1])
-                    s_b_ratio_arr.append(fit_stats['s_b_ratio'][0])
-                    s_b_ratio_arr_err.append(fit_stats['s_b_ratio'][1])
-                    chi2_arr.append(fit_stats['chi2'])
-                exp_significance_array = [exp_signal_bin / np.sqrt(exp_signal_bin + (a / b)) for a, b in zip(raw_counts_arr, s_b_ratio_arr)]
-                bkg_3sigma_array = [a/b for a,b in zip(raw_counts_arr, s_b_ratio_arr)]
+                    score_bin_df = input_bin_data_hdl.get_data_frame()
+                    ### for side band
+                    signal_region = (score_bin_df['fMassH3L'] >= 2.98) & (score_bin_df['fMassH3L'] <= 3.005)
+                    sideband_low = score_bin_df['fMassH3L'] < 2.98
+                    sideband_high = score_bin_df['fMassH3L'] > 3.005
+                    sideband_data = score_bin_df[sideband_low | sideband_high]
+                    x_side = sideband_data['fMassH3L'].values
+                    y_side, bins = np.histogram(x_side, bins=50, range=(mass_range[0], mass_range[1]))
+                    x_side_centers = (bins[:-1] + bins[1:]) / 2
+                    try: 
+                        popt_side, pcov_side = curve_fit(pol2, x_side_centers, y_side)
+                        x_all = score_bin_df['fMassH3L'].values
+                        y_all, bins = np.histogram(x_all, bins=50, range=(mass_range[0], mass_range[1]))
+                        x_all_centers = (bins[:-1] + bins[1:]) / 2
+                        initial_guess = list(popt_side) + [max(y_all), 2.991, 0.01]  # A, mu, sigma
+                        def chi2(a, b, c, A, mu, sigma):
+                            y_pred = combined_fit(x_all_centers, a, b, c, A, mu, sigma)
+                            return np.sum((y_all - y_pred)**2)
+                        m = Minuit(chi2, *initial_guess)
+                        m.limits['sigma'] = (0.001, 0.1)  # 限制sigma范围
+                        m.limits['mu'] = (2.99, 3.01)     # 限制mu范围
+                        m.migrad()  # 执行最小化
+                        params = m.values
+                        errors = m.errors
+                        chi2_value = m.fval
+                        if not silent_mode:
+                            plotpath = f"{output_dir_name}/WPDetail/Pt_{pt_min}_{pt_max}"
+                            if not os.path.exists(plotpath):
+                                os.makedirs(plotpath)
+                            x_plot = np.linspace(mass_range[0], mass_range[1], 1000)
+                            plt.plot(x_all_centers, y_all, label='Data', marker='o', linestyle='None')
+                            plt.plot(x_plot, combined_fit(x_plot, *params), label='Gauss + pol2', linestyle='--', color='orange')
+                            plt.plot(x_plot, pol2(x_plot, *params[:3]), label='pol2', linestyle='--', color='green')
+                            plt.plot(x_plot, gauss(x_plot, *params[3:]), label='Gauss', linestyle='--', color='red')
+                            plt.xlabel(inv_mass_string)
+                            plt.ylabel('Counts')
+                            plt.legend()
+                            plt.tight_layout()
+                            plt.savefig(f"{plotpath}/combined_fit_score_{score}.pdf")
+                            plt.close()
+                        a, b, c, sigma = params['a'], params['b'], params['c'], params['sigma']
+                        background_signal, count_err = quad(lambda x: pol2(x, a, b, c), 2.98, 3.005)
+                        background_signal_1sigmadown, count_err_1sigmadown = quad(lambda x: pol2(x, a, b, c), 2.98+sigma, 3.005-sigma)
+                        background_signal_1sigmaup, count_err_1sigmaup = quad(lambda x: pol2(x, a, b, c), 2.98-sigma, 3.005+sigma)
+                        binwidth = bins[1] - bins[0]
+                        total_background = background_signal / binwidth
+                        total_background_1sigmaup = background_signal_1sigmaup / binwidth
+                        total_background_1sigmadown = background_signal_1sigmadown / binwidth
+                        exp_significance = exp_signal_bin / np.sqrt(exp_signal_bin + total_background)
+                        exp_significance_1sigmaup = exp_signal_bin / np.sqrt(exp_signal_bin + total_background_1sigmaup)
+                        exp_significance_1sigmadown = exp_signal_bin / np.sqrt(exp_signal_bin + total_background_1sigmadown)
+                        WP_BDT_score.append(score)
+                        WP_BDT_eff.append(efficency)
+                        WP_BKG_bkgcounts.append(total_background)
+                        WP_BKG_bkgcounts_up.append(total_background_1sigmaup)
+                        WP_BKG_bkgcounts_down.append(total_background_1sigmadown)
+                        WP_exp_significance.append(exp_significance)
+                        WP_exp_significance_up.append(exp_significance_1sigmaup)
+                        WP_exp_significance_down.append(exp_significance_1sigmadown)
+                        WP_chi2.append(chi2_value)
+                    except RuntimeWarning:
+                        print("Fit failed for score:", score)
+                        continue
                 df_working_point = pd.DataFrame({
-                    'exp_significance': exp_significance_array,
-                    'raw_counts': raw_counts_arr,
-                    'raw_counts_err': raw_counts_arr_err,
-                    'bkg_3sigma': bkg_3sigma_array,
-                    'BDT_efficiency': eff_arr,
-                    'BDT_score': score_eff_arr,
-                    'chi2': chi2_arr
+                    'BDT_score': WP_BDT_score,
+                    'BDT_efficiency': WP_BDT_eff,
+                    'BKG_bkgcounts': WP_BKG_bkgcounts,
+                    'BKG_bkgcounts_up': WP_BKG_bkgcounts_up,
+                    'BKG_bkgcounts_down': WP_BKG_bkgcounts_down,
+                    'exp_significance': WP_exp_significance,
+                    'exp_significance_up': WP_exp_significance_up,
+                    'exp_significance_down': WP_exp_significance_down,
+                    'chi2': WP_chi2
                 })
+                df_working_point['product'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance']
+                df_working_point['product_up'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance_down']
+                df_working_point['product_down'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance_up']
                 df_working_point.to_csv(f"{output_dir_name}/working_point_data_frame_{pt_min}_{pt_max}.csv")
-            df_working_point = df_working_point[df_working_point['raw_counts'] != 0]
-            df_working_point = df_working_point.query('chi2 < 1.4 & raw_counts_err / raw_counts < 1')
-            df_working_point['product'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance']
+                #df_working_point = df_working_point[df_working_point['BKG_bkgcounts'] != 0]
+                df_working_point = df_working_point.query('BKG_bkgcounts > 0 & BKG_bkgcounts_down > 0 & BKG_bkgcounts_up > 0 & BKG_bkgcounts_down / BKG_bkgcounts < 1 & BKG_bkgcounts_up / BKG_bkgcounts > 1')
+            #####
+            #============old code for BDT training and working point selection========================
+            #     raw_counts_arr = []
+            #     raw_counts_arr_err = []
+            #     significance_arr = []
+            #     significance_arr_err = []
+            #     s_b_ratio_arr = []
+            #     s_b_ratio_arr_err = []
+            #     chi2_arr = []
+            #     output_file = ROOT.TFile.Open(f"{output_dir_name}/training_spectrum_{pt_min}_{pt_max}.root", 'recreate')
+            #     output_dir_std = output_file.mkdir('std')
+            #     for i_eff in range(len(score_eff_arr)):
+            #         score = score_eff_arr[i_eff]
+            #         efficency = eff_arr[i_eff]
+            #         input_bin_data_hdl = bin_data_hdl.apply_preselections(f"BDT_value > {score}",inplace = False)
+            #         score_label = [f'{pt_min} #leq #it{{p}}_{{T}} < {pt_max} GeV/#it{{c}}',f'BDT_Score > {score}', f'BDT Efficiency: {efficency:.3f}']
+            #         signal_extraction = SignalExtraction(input_bin_data_hdl, bin_mc_hdl)
+            #         signal_extraction.bkg_fit_func = "pol2"
+            #         signal_extraction.signal_fit_func = "dscb"
+            #         signal_extraction.n_bins_data = 40
+            #         signal_extraction.n_bins_mc = 80
+            #         signal_extraction.n_evts = n_env
+            #         signal_extraction.is_matter = is_matter
+            #         signal_extraction.performance = False
+            #         signal_extraction.is_3lh = True
+            #         signal_extraction.out_file = output_dir_std
+            #         signal_extraction.data_frame_fit_name = f'data_fit_BDT_score_{score}'
+            #         signal_extraction.mc_frame_fit_name = f'mc_fit_pt_{pt_min}_{pt_max}'
+            #         signal_extraction.additional_pave_text = score_label
+            #         signal_extraction.sigma_range_mc_to_data = [1., 1.5]
+            #         fit_stats = signal_extraction.process_fit()
+            #         raw_counts_arr.append(fit_stats['signal'][0])
+            #         raw_counts_arr_err.append(fit_stats['signal'][1])
+            #         significance_arr.append(fit_stats['significance'][0])
+            #         significance_arr_err.append(fit_stats['significance'][1])
+            #         s_b_ratio_arr.append(fit_stats['s_b_ratio'][0])
+            #         s_b_ratio_arr_err.append(fit_stats['s_b_ratio'][1])
+            #         chi2_arr.append(fit_stats['chi2'])
+            #     exp_significance_array = [exp_signal_bin / np.sqrt(exp_signal_bin + (a / b)) for a, b in zip(raw_counts_arr, s_b_ratio_arr)]
+            #     bkg_3sigma_array = [a/b for a,b in zip(raw_counts_arr, s_b_ratio_arr)]
+            #     df_working_point = pd.DataFrame({
+            #         'exp_significance': exp_significance_array,
+            #         'raw_counts': raw_counts_arr,
+            #         'raw_counts_err': raw_counts_arr_err,
+            #         'bkg_3sigma': bkg_3sigma_array,
+            #         'BDT_efficiency': eff_arr,
+            #         'BDT_score': score_eff_arr,
+            #         'chi2': chi2_arr
+            #     })
+            #     df_working_point.to_csv(f"{output_dir_name}/working_point_data_frame_{pt_min}_{pt_max}.csv")
+            # df_working_point = df_working_point[df_working_point['raw_counts'] != 0]
+            # df_working_point = df_working_point.query('chi2 < 1.4 & raw_counts_err / raw_counts < 1')
+            # df_working_point['product'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance']
+            #=======old code============
             max_row = df_working_point.loc[df_working_point['product'].idxmax()]
             max_product = max_row['product']
             max_efficiency = max_row['BDT_efficiency']
             max_score = max_row['BDT_score']
+            ds = xr.Dataset(
+                {
+                    "center": ("x", df_working_point['product']),
+                    "upper": ("x", df_working_point['product_up']),
+                    "lower": ("x", df_working_point['product_down']),
+                },
+                coords={"x": df_working_point['BDT_score']},
+            )
             plt.figure(figsize=(10, 6))
-            plt.scatter(
-                df_working_point['BDT_score'],
-                df_working_point['product'],
-                label='All Points'
-            )
-            plt.scatter(
-                max_score,
-                max_product,
-                color='red',
-                s=100,  # 点大小
-                label=f'Max: BDT_eff={max_efficiency:.2f}, Score={max_score:.2f}'
-            )
-            plt.annotate(
-                f'Max: ({max_score:.2f}, {max_product:.2f})',
-                xy=(max_score, max_product),
-                xytext=(10, 10),
-                textcoords='offset points',
-                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                arrowprops=dict(arrowstyle='->')
-            )
-            plt.title(f'BDT_efficiency * exp_significance vs BDT_score pt: {pt_min}-{pt_max}')
-            plt.xlabel('BDT_score')
-            plt.ylabel('BDT_efficiency * exp_significance')
+            plt.plot(ds.x, ds.center, color="black", label="Center", linewidth=2)
+            plt.scatter(ds.x, ds.upper, color="red", s=10, label="Upper 1σ", alpha=0.5)
+            plt.scatter(ds.x, ds.lower, color="blue", s=10, label="Lower 1σ", alpha=0.5)
+            plt.fill_between(ds.x, ds.lower, ds.upper, color="gray", alpha=0.2, label="1σ Region")
+            plt.xlabel("BDT_Score")
+            plt.ylabel("Expected Significance x BDT_Efficiency")
+            plt.title(f"BDT working Point pt: {pt_min}-{pt_max}")
             plt.legend()
-            plt.grid(True)
+            plt.grid(True, linestyle="--", alpha=0.5)
             plt.tight_layout()
+            plt.text(
+                x=0.5,  # x 坐标（0~1 是相对坐标，也可以直接用数据坐标）
+                y=0.2,  # y 坐标（0~1 是相对坐标）
+                s=f"Working Point: BDT_Score={max_score:.2f}, BDT_eff={max_efficiency:.2f}",  # 文本内容
+                transform=plt.gca().transAxes,  # 使用相对坐标
+                bbox=dict(  # 设置文本框样式
+                    facecolor="white",  # 背景色
+                    edgecolor="white",  # 边框颜色
+                    boxstyle="round,pad=0.5",  # 圆角边框
+                    alpha=0.8,  # 透明度
+                ),
+                fontsize=12,
+                ha="center",  # 水平对齐
+                va="center",  # 垂直对齐
+            )
             plt.savefig(f"{output_dir_name}/exp_significance_vs_BDT_score_{pt_min}_{pt_max}.pdf")
             plt.close()
-            bin_data_hdl.apply_preselections(f"BDT_value > {max_score + 3}", inplace=True)
+            bin_data_hdl.apply_preselections(f"BDT_value > {max_score}", inplace=True)
         ###*****The End of BDT********
         elif pre_selection_method == 'topology':
             print("**Using Topology Cuts for H3l pre-selection**")
@@ -840,7 +989,7 @@ if __name__ == '__main__':
             plt.xlabel("h3lmass")
             plt.ylabel("weight")
             plt.legend()
-            plt.title("sWeights")
+            plt.title(f"sWeights_pt_{pt_min}_{pt_max}")
             plt.tight_layout()
             plt.savefig(f"{output_dir_name}/weight_sWeights_pt_{pt_min}_{pt_max}.pdf")
             plt.close()
@@ -851,7 +1000,7 @@ if __name__ == '__main__':
                 make_weighted_negative_log_likelihood(ct_array, sws_accptance, ct_pdf_data_py),
                 tau=8,
             )
-            tmi_sw.limits["tau"] = (0, 10)
+            #tmi_sw.limits["tau"] = (0, 10)
             tmi_sw.migrad()
             tmi_sw.hesse()
             ## corrections
@@ -947,7 +1096,7 @@ if __name__ == '__main__':
             plt.xlabel("h3lmass")
             plt.ylabel("weight")
             plt.legend()
-            plt.title("COWs")
+            plt.title(f"COWs_pt_{pt_min}_{pt_max}")
             plt.tight_layout()
             plt.savefig(f"{output_dir_name}/weight_COWs_pt_{pt_min}_{pt_max}.pdf")
             plt.close()
@@ -958,7 +1107,7 @@ if __name__ == '__main__':
                 make_weighted_negative_log_likelihood(ct_array, scow_accptance, ct_pdf_data_py),
                 tau=8,
             )
-            tmi_cow.limits["tau"] = (0, 10)
+            #tmi_cow.limits["tau"] = (0, 10)
             tmi_cow.migrad()
             tmi_cow.hesse()
             ## corrections
