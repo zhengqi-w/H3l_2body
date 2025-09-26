@@ -535,7 +535,7 @@ selection:
   ]
 
 
-do_syst: True
+do_syst: False
 n_trials: 200
 bkg_fit_func_syst: ["pol1", "expo"]
 signal_fit_func_syst: ["dscb"]

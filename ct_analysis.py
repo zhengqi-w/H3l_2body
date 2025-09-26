@@ -1,4 +1,4 @@
-# this code is designed for using s-Weight method for extractiong ct(signal) distribution h_s(t) for certain pt bins
+# this code is designed for extractiong the lifetime of hypertriton from ct spectra, using BDT training method
 import ROOT
 ROOT.gROOT.SetBatch(True)
 ROOT.RooMsgService.instance().setSilentMode(True)
@@ -41,6 +41,7 @@ if __name__ == '__main__':
     ct_bins = config['ct_bins']
     selections_std = config['selection']
     is_matter = config['is_matter']
+    use_BDT = config['use_BDT']
 
     signal_fit_func = config['signal_fit_func']
     bkg_fit_func = config['bkg_fit_func']

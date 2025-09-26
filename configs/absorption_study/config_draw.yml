@@ -1,0 +1,8 @@
+pt_bins: [2, 3.5, 5, 8]
+ct_bins: [[0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35]]
+org_tao: 7.6
+mc_file: '../../results/absorption/absorption_tree_x5.root'
+save_path: '../../results/absorption'
+name_suffix: 'x5'

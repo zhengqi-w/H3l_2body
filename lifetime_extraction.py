@@ -1,3 +1,4 @@
+# this code is designed for using s-Weight method for extractiong ct(signal) distribution h_s(t) for certain pt bins
 import ROOT
 import numpy as np
 import uproot
@@ -1000,7 +1001,7 @@ if __name__ == '__main__':
                 make_weighted_negative_log_likelihood(ct_array, sws_accptance, ct_pdf_data_py),
                 tau=8,
             )
-            #tmi_sw.limits["tau"] = (0, 10)
+            tmi_sw.limits["tau"] = (0, 20)
             tmi_sw.migrad()
             tmi_sw.hesse()
             ## corrections
@@ -1052,7 +1053,7 @@ if __name__ == '__main__':
                 f"corrected {tau_value:.3f} +/- {tau_corrected:.3f}"
             )
             ct_hist_sweights.SetBinContent(i + 1, tau_value)
-            ct_hist_sweights.SetBinError(i + 1, tau_corrected)
+            ct_hist_sweights.SetBinError(i + 1, tau_error)
             ### plot the ct distribution
             bins = 50
             x_ct = np.linspace(ct_range[i][0], ct_range[i][1], 500)
@@ -1066,6 +1067,13 @@ if __name__ == '__main__':
             plt.xlabel("ct (cm)")
             plt.ylabel("Events")
             plt.yscale("log")
+            plt.text(
+                0.3, 0.25,
+                f"Extracted ct: {tau_value:.3f} ± {tau_error:.3f} cm",
+                transform=plt.gca().transAxes,
+                fontsize=12,
+                bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.3", alpha=0.7)
+            )
             plt.legend()
             plt.title(f"ct distribution (sWeights) pt {pt_min} - {pt_max}")
             plt.tight_layout()
@@ -1107,7 +1115,7 @@ if __name__ == '__main__':
                 make_weighted_negative_log_likelihood(ct_array, scow_accptance, ct_pdf_data_py),
                 tau=8,
             )
-            #tmi_cow.limits["tau"] = (0, 10)
+            tmi_cow.limits["tau"] = (0, 20)
             tmi_cow.migrad()
             tmi_cow.hesse()
             ## corrections
@@ -1159,7 +1167,7 @@ if __name__ == '__main__':
                 f"corrected {tau_value:.3f} +/- {tau_corrected:.3f}"
             )
             ct_hist_cows.SetBinContent(i + 1, tau_value)
-            ct_hist_cows.SetBinError(i + 1, tau_corrected)
+            ct_hist_cows.SetBinError(i + 1, tau_error)
             ### plot the ct distribution
             bins = 50
             x_ct = np.linspace(ct_range[i][0], ct_range[i][1], 500)
@@ -1173,17 +1181,18 @@ if __name__ == '__main__':
             plt.xlabel("ct (cm)")
             plt.ylabel("Events")
             plt.yscale("log")
+            plt.text(
+                0.3, 0.25,
+                f"Extracted ct: {tau_value:.3f} ± {tau_error:.3f} cm",
+                transform=plt.gca().transAxes,
+                fontsize=12,
+                bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.3", alpha=0.7)
+            )
             plt.legend()
             plt.title(f"ct distribution (COWs) pt {pt_min} - {pt_max}")
             plt.tight_layout()
             plt.savefig(f"{output_dir_name}/ct_COWs_pt_{pt_min}_{pt_max}.pdf")
-            plt.close()
-    stddir.cd()
-    ct_hist_sweights.Write()
-    ct_hist_cows.Write()
-    stddir.Close()
-    spectra_file.Close()
-
+            plt.close()    
 
 
 

@@ -116,23 +116,18 @@ data_hdl = utils.merge_treehandlers(data_hdl_list)
 mc_hdl = TreeHandler(input_mc_file_path, 'O2mchypcands', folder_name='DF*')
 utils.correct_and_convert_df(mc_hdl, calibrate_he3_pt = False, isMC=True)
 ## reweight MC pt spectrum
-centrality_bins = [0,10,30,50,80]
+cen_min, cen_max = cen_bins[0], cen_bins[1]
 df_mc = mc_hdl.get_data_frame()
-df_split = []
 spectra_file = ROOT.TFile.Open('utils/H3L_BWFit.root')
-for i in range(len(centrality_bins)-1):
-    cen_min, cen_max = centrality_bins[i], centrality_bins[i+1]
-    if cen_min == 50 and cen_max == 80:
-        H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_30_50') #use h3lBW_30_50 for 50_80
-        df_cen_bin =  df_mc[(df_mc['fCentralityFT0C'] >= 50) & (df_mc['fCentralityFT0C'] < 110)].copy()
-    else:
-        H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_{cen_min}_{cen_max}')
-        df_cen_bin =  df_mc[(df_mc['fCentralityFT0C'] >= cen_min) & (df_mc['fCentralityFT0C'] < cen_max)].copy()
-    utils.reweight_pt_spectrum(df_cen_bin, 'fAbsGenPt', H3l_spectrum)
-    df_cen_bin = df_cen_bin.query("rej == 1")
-    df_split.append(df_cen_bin)
+if cen_min == 50 and cen_max == 80:
+    H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_30_50') #use h3lBW_30_50 for 50_80
+elif (cen_min == 0 and cen_max == 5) or (cen_min == 5 and cen_max == 10):
+    H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_0_10')
+else:
+    H3l_spectrum = spectra_file.Get(f'BlastWave_H3L_{cen_min}_{cen_max}')
+utils.reweight_pt_spectrum(df_mc, 'fAbsGenPt', H3l_spectrum)
+df_mc = df_mc.query("rej == 1")
 spectra_file.Close()
-df_mc = pd.concat(df_split).sort_index()
 mc_hdl.set_data_frame(df_mc)
 #mc_hdl.apply_preselections('fGenCt < 28.5 or fGenCt > 28.6')
 mc_reco_hdl = mc_hdl.apply_preselections('fIsReco == 1', inplace=False)

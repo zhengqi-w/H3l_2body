@@ -1,0 +1,82 @@
+input_files_data:
+  [
+    "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AO2D.root"
+  ]
+input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"]
+input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
+output_dir: "../results/ep4/ct_extraction"
+output_file: "ct_analysis"
+
+pt_bins: [2, 3.5, 5, 8]
+ct_bins: [[0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35]]
+bkg_fit_func: "expo"
+signal_fit_func: "dscb"
+is_matter: "both"
+n_bins_mass_data: 40
+n_bins_mass_mc: 80
+mass_range: [2.95, 3.05]
+
+use_BDT: True
+new_training: False
+new_WP_process: False
+save_working_points_fit: True
+npoints_for_WP: 100
+training_preselections: 'fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99'
+training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe']
+test_set_size: 0.5
+bkg_fraction_max: 6
+random_state: 42
+hyperparams:
+  max_depth: 5 # 5
+  min_split_loss: 1.5 # 0.7
+  learning_rate: 0.05
+  n_estimators: 800
+  min_child_weight: 3 # 3
+  subsample: 0.70
+  colsample_bytree: 0.73
+  tree_method: 'hist'
+  seed: 42
+
+selection:
+  [
+    {
+      "fPt": "fPt > 1.2",
+      "fCosPA": "fCosPA > 0.99",
+      "fNSigmaHe": "fNSigmaHe > -2.",
+      "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    },
+    {
+      "fPt": "fPt > 1.2",
+      "fCosPA": "fCosPA > 0.99",
+      "fNSigmaHe": "fNSigmaHe > -2.",
+      "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    },
+    {
+      "fPt": "fPt > 1.2",
+      "fCosPA": "fCosPA > 0.99",
+      "fNSigmaHe": "fNSigmaHe > -2.",
+      "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    },
+    {
+      "fPt": "fPt > 1.2",
+      "fCosPA": "fCosPA > 0.99",
+      "fNSigmaHe": "fNSigmaHe > -2.",
+      "fTPCsignalPi": "fTPCsignalPi < 1000.",
+    },
+  ]
+
+sigma_range_mc_to_data: [[1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5], [1., 1.5]]
+
+do_syst: False
+n_trials: 1000
+bkg_fit_func_syst: ["pol1", "expo"]
+signal_fit_func_syst: ["dscb"]
+cut_dict_syst: {
+    "fCosPA": { "cut_greater": True, "cut_list": [0.98, 0.999, 50] },
+    "fPt": { "cut_greater": True, "cut_list": [0.9, 1.3, 50] },
+    "fNSigmaHe": { "cut_greater": True, "cut_list": [-2.5, -2.5, 1] },
+    "fTPCsignalPi": { "cut_greater": False, "cut_list": [1000, 1000, 1] },
+    #  "fDcaV0Daug": {"cut_greater": False, "cut_list": [0.1, 0.5, 20]}
+  }

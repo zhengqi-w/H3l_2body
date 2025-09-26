@@ -98,12 +98,8 @@ class SpectraMaker:
                 bin_sel = f'{bin_sel} and fCentralityFT0C > {bin_cen[0]} & fCentralityFT0C < {bin_cen[1]}'
             if self.var == 'fCt':
                 mc_bin_sel = f'fGenCt > {bin[0]} & fGenCt < {bin[1]}'
-                if self.bins_cen: 
-                    mc_bin_sel = f'{mc_bin_sel} and fCentralityFT0C > {bin_cen[0]} & fCentralityFT0C < {bin_cen[1]}'
             else:
                 mc_bin_sel = f'fAbsGenPt > {bin[0]} & fAbsGenPt < {bin[1]}'
-                if self.bins_cen: 
-                    mc_bin_sel = f'{mc_bin_sel} and fCentralityFT0C > {bin_cen[0]} & fCentralityFT0C < {bin_cen[1]}'
             # count generated per ct bin
             bin_mc_hdl = self.mc_hdl.apply_preselections(mc_bin_sel, inplace=False)
             bin_mc_reco_hdl_raw = self.mc_reco_hdl.apply_preselections(mc_bin_sel, inplace=False)

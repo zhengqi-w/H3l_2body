@@ -111,28 +111,6 @@ if do_training:
         # reweight MC pT spectrum and plot GentCt - Ct in the same time
         df_signal = signalH.get_data_frame() # or just signalH._full_data_frame
         print(df_signal)
-        # column_GentCt = df_signal["fGenCt"]
-        # column_Ct = df_signal["fCt"]
-        # column_difference = (column_GentCt - column_Ct)
-        # plt.figure(figsize=(10, 6))
-        # plt.hist(column_difference, bins=200, color='blue', alpha=0.7, label='GentCt - Ct')
-        # #plt.axvline(0, color='red', linestyle='--', label='Zero Line')  # 可选，标记零点
-        # plt.xlabel('GentCt - Ct (cm)')
-        # plt.ylabel('Counts')
-        # plt.ylim(0, 150000)
-        # plt.title('')
-        # plt.legend()
-        # plt.tight_layout()
-        # plt.savefig(output_base_dir + '/GentCt_Ct.pdf')
-        # plt.close("all")
-        # plt.plot(column_GentCt, column_difference, label='(Gentct-ct)/Gentct vs Gentct', marker='o')
-        # plt.xlabel('GentCt (cm)')
-        # plt.ylabel('(GentCt - Ct)/GentCt')
-        # plt.title('')
-        # plt.legend()
-        # plt.tight_layout()
-        # plt.savefig(output_base_dir + '/Gentct_ct_div_vs_Gentct.pdf')
-        # plt.close("all")
         spectra_file = ROOT.TFile.Open('utils/H3L_BWFit.root')
         reweighted_df = pd.DataFrame()
         prev_pt_bins = None     

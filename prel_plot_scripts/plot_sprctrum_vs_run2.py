@@ -178,15 +178,17 @@ h3l_5_10_run3_file = ROOT.TFile.Open("../../results/ep4/both/cen5-10/pt_analysis
 h3l_10_30_run3_file = ROOT.TFile.Open("../../results/ep4/both/cen10-30/pt_analysis_pbpb.root")
 h3l_30_50_run3_file = ROOT.TFile.Open("../../results/ep4/both/cen30-50/pt_analysis_pbpb.root")
 h3l_50_80_run3_file = ROOT.TFile.Open("../../results/ep4/both/cen50-80/pt_analysis_pbpb.root")
-h3l_0_5_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen0-5/pt_analysis_pbpb.root.root")
-h3l_5_10_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen5-10/pt_analysis_pbpb.root.root")
-h3l_10_30_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen10-30/pt_analysis_pbpb.root.root")
-h3l_30_50_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen30-50/pt_analysis_pbpb.root.root")
-h3l_50_80_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen50-80/pt_analysis_pbpb.root.root")
+h3l_0_5_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen0-5/pt_analysis_pbpb.root")
+h3l_5_10_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen5-10/pt_analysis_pbpb.root")
+h3l_10_30_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen10-30/pt_analysis_pbpb.root")
+h3l_30_50_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen30-50/pt_analysis_pbpb.root")
+h3l_50_80_run3_file_BDT = ROOT.TFile.Open("../../results/ep4/spec_trainboth/cen50-80/pt_analysis_pbpb.root")
 h3l_0_5_run3_file_BDT_apass5 = ROOT.TFile.Open("../../results/ep5/spec_trainboth/cen0-5/pt_analysis_pbpb.root")
 h3l_5_10_run3_file_BDT_apass5 = ROOT.TFile.Open("../../results/ep5/spec_trainboth/cen5-10/pt_analysis_pbpb.root")
 h3l_10_30_run3_file_BDT_apass5 = ROOT.TFile.Open("../../results/ep5/spec_trainboth/cen10-30/pt_analysis_pbpb.root")
 h3l_30_50_run3_file_BDT_apass5 = ROOT.TFile.Open("../../results/ep5/spec_trainboth/cen30-50/pt_analysis_pbpb.root")
+h3l_50_80_run3_file_BDT_apass5 = ROOT.TFile.Open("../../results/ep5/spec_trainboth/cen50-80/pt_analysis_pbpb.root")
+
 
 graph_h3l_0_10_run2 = find_graph_by_name(h3l_0_10_run2_file,'Graph1D_y1')
 graph_h3l_10_30_run2 = find_graph_by_name(h3l_10_30_run2_file,'Graph1D_y1')
@@ -207,6 +209,7 @@ graph_h3l_0_5_run3_BDT_apass5 = find_graph_by_name(h3l_0_5_run3_file_BDT_apass5,
 graph_h3l_5_10_run3_BDT_apass5 = find_graph_by_name(h3l_5_10_run3_file_BDT_apass5,'h_corrected_counts')
 graph_h3l_10_30_run3_BDT_apass5 = find_graph_by_name(h3l_10_30_run3_file_BDT_apass5,'h_corrected_counts')
 graph_h3l_30_50_run3_BDT_apass5 = find_graph_by_name(h3l_30_50_run3_file_BDT_apass5,'h_corrected_counts')
+graph_h3l_50_80_run3_BDT_apass5 = find_graph_by_name(h3l_50_80_run3_file_BDT_apass5,'h_corrected_counts')
 
 
 
@@ -468,7 +471,7 @@ ax_top.errorbar(
     fmt = "o",  
     markersize = markersize,                   
     color = "red",
-    label = "Topology Spectrum apass4(0-5%)",  
+    label = "Topology Spectrum apass4(5-10%)",  
 )
 ax_top.errorbar(
     x = x_run3_10_30_BDT,
@@ -478,7 +481,7 @@ ax_top.errorbar(
     fmt = "D",  
     markersize = markersize,                   
     color = "cyan",
-    label = "BDT Spectruma apass4(0-5%)",  
+    label = "BDT Spectruma apass4(5-10%)",  
 )
 ax_top.errorbar(
     x = x_run3_10_30_BDT_apass5,
@@ -488,7 +491,7 @@ ax_top.errorbar(
     fmt = "*",   
     markersize = markersize,                  
     color = "magenta",
-    label = "BDT Spectrum apass5(0-5%)",  
+    label = "BDT Spectrum apass5(5-10%)",  
 )
 ax_top.plot(x_TF1_10_30, y_TF1_10_30, 'g--', linewidth=2, label='BlastWave Fit Run2(10_30%)')
 ax_top.set_title('H3L Spectrum Run3(10-30%) vs Run2(10-30%)')
@@ -561,7 +564,7 @@ ax_top.errorbar(
     fmt = "s",                       # 方形标记
     markersize = markersize,
     color = "blue",
-    label = "Run2 Reference(0-10%)",
+    label = "Run2 Reference(30-50%)",
 )
 ax_top.errorbar(
     x = x_run3_30_50,
@@ -571,7 +574,7 @@ ax_top.errorbar(
     fmt = "o",  
     markersize = markersize,                   
     color = "red",
-    label = "Topology Spectrum apass4(0-5%)",  
+    label = "Topology Spectrum apass4(30-50%)",  
 )
 ax_top.errorbar(
     x = x_run3_30_50_BDT,
@@ -581,7 +584,7 @@ ax_top.errorbar(
     fmt = "D",  
     markersize = markersize,                   
     color = "cyan",
-    label = "BDT Spectruma apass4(0-5%)",  
+    label = "BDT Spectruma apass4(30-50%)",  
 )
 ax_top.errorbar(
     x = x_run3_30_50_BDT_apass5,
@@ -591,7 +594,7 @@ ax_top.errorbar(
     fmt = "*",   
     markersize = markersize,                  
     color = "magenta",
-    label = "BDT Spectrum apass5(0-5%)",  
+    label = "BDT Spectrum apass5(30-50%)",  
 )
 ax_top.plot(x_TF1_30_50, y_TF1_30_50, 'g--', linewidth=2, label='BlastWave Fit Run2(30_50%)')
 ax_top.set_title('H3L Spectrum Run3(30-50%) vs Run2(30-50%)')
@@ -646,8 +649,11 @@ plt.savefig(f'{output_path_base}/H3L_spectrum_30_50.pdf', dpi=300)
 ###50-80%
 x_run3_50_80, y_run3_50_80, y_err_run3_50_80, x_edge_run3_50_80  = extract_info_TH1(graph_h3l_50_80_run3)
 x_run3_50_80_BDT, y_run3_50_80_BDT, y_err_run3_50_80_BDT, x_edge_run3_50_80_BDT = extract_info_TH1(graph_h3l_50_80_run3_BDT)
+x_run3_50_80_BDT_apass5, y_run3_50_80_BDT_apass5, y_err_run3_50_80_BDT_apass5, x_edge_run3_50_80_BDT_apass5 = extract_info_TH1(graph_h3l_50_80_run3_BDT_apass5)
 y_ratio_run3_BDT_Topo = y_run3_50_80_BDT/y_run3_50_80
 y_ratio_run3_BDT_Topo_err = np.sqrt((y_err_run3_50_80_BDT/y_run3_50_80)**2 + (y_err_run3_50_80/y_run3_50_80_BDT)**2)
+y_ratio_run3_BDT_apass5 = y_run3_50_80_BDT_apass5/y_run3_50_80
+y_ratio_run3_BDT_apass5_err = np.sqrt((y_err_run3_50_80_BDT_apass5/y_run3_50_80)**2 + (y_err_run3_50_80/y_run3_50_80_BDT_apass5)**2)
 fig, (ax_top, ax_bottom) = plt.subplots(2, 1, figsize=(12, 8))
 fig.subplots_adjust(hspace=0.3)  # 调整水平间距
 ax_top.set_position([0.1, 0.3, 0.8, 0.6])  # [左, 下, 宽, 高]
@@ -660,7 +666,7 @@ ax_top.errorbar(
     fmt = "o",  
     markersize = markersize,                   
     color = "red",
-    label = "Topology Spectrum apass4(0-5%)",  
+    label = "Topology Spectrum apass4(50-80%)",  
 )
 ax_top.errorbar(
     x = x_run3_50_80_BDT,
@@ -670,7 +676,17 @@ ax_top.errorbar(
     fmt = "D",  
     markersize = markersize,                   
     color = "cyan",
-    label = "BDT Spectruma apass4(0-5%)",  
+    label = "BDT Spectruma apass4(50-80%)",  
+)
+ax_top.errorbar(
+    x = x_run3_50_80_BDT_apass5,
+    y = y_run3_50_80_BDT_apass5,
+    #xerr = 0,  
+    yerr = y_err_run3_50_80_BDT_apass5,  
+    fmt = "*",   
+    markersize = markersize,                  
+    color = "magenta",
+    label = "BDT Spectrum apass5(50-80%)",  
 )
 ax_top.set_title('H3L Spectrum Run3(50-80%) vs Run2(50-80%)')
 ax_top.set_ylabel(r'$\frac{d\it{N}}{d\it{p}_{\!T}} (\mathrm{GeV}/\it{c})^{-1}$', fontsize=14)
@@ -687,6 +703,15 @@ ax_bottom.errorbar(
     fmt = "o",                     
     color = "#FF7F00",
     label = "Ratio apass4 BDT/Topology",  
+)
+ax_bottom.errorbar(
+    x = x_run3_50_80,
+    y = y_ratio_run3_BDT_apass5,
+    #xerr = 0,  
+    yerr = y_ratio_run3_BDT_apass5_err,  
+    fmt = "o",                     
+    color = "magenta",
+    label = "Ratio apass5/apass4 BDT",  
 )
 ax_bottom.plot(x_TF1_30_50, ratio_base_30_50, '-.', color='0.7', linewidth=1)
 ax_bottom.set_ylabel(r'Ratio', fontsize=14)

@@ -3,7 +3,7 @@ do_application: True
 calibrate_he_momentum: False
 
 input_data_path: ['/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D.root']
-input_mc_path: '/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root'
+input_mc_path: '/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D.root'
 input_AnalysisResults_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults.root"
 # input_absorption_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/absorption"
 input_absorption_file_path: ''
@@ -15,7 +15,7 @@ output_base_dir : '../results/ep5/training_test'
 
 cen_pt_bins_dic:
   "50_80": [2, 2.5, 3, 3.5, 4, 4.5, 5, 8]
-  "0_5":  []
+  "0_5": []
   "5_10": []
   "10_30": []
   "30_50": []
