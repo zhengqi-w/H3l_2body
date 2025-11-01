@@ -1,16 +1,27 @@
 input_files_data:
   [
-    "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AO2D.root"
+    # "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root"
+    "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root"
   ]
-input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"]
-input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
-output_dir: "../results/ep4/ct_extraction"
+#input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D.root"]
+#input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"]
+input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"]
+#input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_HadronPID.root"
+input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_CustomV0s.root"
+output_dir: "../results/ep5/ct_extraction_G4list_CustomV0s"
 output_file: "ct_analysis"
 
-pt_bins: [2, 3.5, 5, 8]
-ct_bins: [[0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
-          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35],
-          [0, 2, 4, 6, 8, 10, 14, 18, 23, 35]]
+#both config
+pt_bins: [2, 3, 4, 5.5, 8]
+ct_bins: [[1, 3, 6, 9, 12, 18, 30],
+          [1, 3, 6, 9, 12, 18, 25],
+          [1, 3, 6, 9, 15, 25],
+          [1, 3, 6, 10, 23]]
+#matter config
+# pt_bins_for_ct_acc: [2, 3.5, 5, 8]
+# ct_bins_for_ct_acc: [[1, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+#                      [1, 2, 4, 6, 8, 10, 14, 18, 23, 35],
+#                      [1, 2, 4, 6, 8, 10, 14, 18, 35]]
 bkg_fit_func: "expo"
 signal_fit_func: "dscb"
 is_matter: "both"
@@ -19,9 +30,10 @@ n_bins_mass_mc: 80
 mass_range: [2.95, 3.05]
 
 use_BDT: True
-new_training: False
-new_WP_process: False
+new_training: True
+new_WP_process: True
 save_working_points_fit: True
+use_fitted_shift_nsigmaHe: False
 npoints_for_WP: 100
 training_preselections: 'fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99'
 training_variables: ['fDcaV0Daug', 'fDcaHe', 'fDcaPi', 'fCosPA', 'fNSigmaHe']

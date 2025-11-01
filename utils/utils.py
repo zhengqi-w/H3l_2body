@@ -609,3 +609,21 @@ def merge_treehandlers(handlers):
     print(f"Merged data from {len(handlers)} TreeHandlers into one.")
     
     return merged_handler
+
+def extract_info_TH1(hist):
+    n_bins = hist.GetNbinsX()
+    bin_values = np.array([hist.GetBinContent(i) for i in range(1, n_bins + 1)])
+    bin_errors = np.array([hist.GetBinError(i) for i in range(1, n_bins + 1)])
+    bin_edges = np.array([hist.GetBinLowEdge(i) for i in range(1, n_bins + 2)])
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:]) 
+    return bin_centers, bin_values, bin_errors, bin_edges
+
+def extract_info_TGraphAsymmErrors(graph):
+    n_points = graph.GetN()
+    x = np.ndarray(n_points, 'd', graph.GetX())
+    y = np.ndarray(n_points, 'd', graph.GetY())
+    x_err_low = np.ndarray(n_points, 'd', graph.GetEXlow())
+    x_err_high = np.ndarray(n_points, 'd', graph.GetEXhigh())
+    y_err_low = np.ndarray(n_points, 'd', graph.GetEYlow())
+    y_err_high = np.ndarray(n_points, 'd', graph.GetEYhigh())
+    return x, y, x_err_low, x_err_high, y_err_low, y_err_high

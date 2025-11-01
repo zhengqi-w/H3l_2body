@@ -1,0 +1,12 @@
+absorption_tree_file_list: [
+  '../results/absorption/absorption_tree_x1.root',
+  '../results/absorption/absorption_tree_x1.5.root',
+  '../results/absorption/absorption_tree_x2.root',
+  '../results/absorption/absorption_tree_x5.root',
+]
+ct_extraction_file: '../results/ep5/ct_extraction_G4list_test/both/ct_analysis.root'
+out_path: '../results/ep5/crossection'
+n_times_list: [1, 1.5, 2, 5]
+pt_bins: [2, 3, 4, 5.5, 8]
+is_matter: 'both'
+org_ctao: 7.6

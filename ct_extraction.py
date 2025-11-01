@@ -33,6 +33,7 @@ import sys
 sys.path.append('utils')
 import utils as utils
 from spectra import SpectraMaker
+import shutil
 
 
 if __name__ == '__main__':
@@ -87,6 +88,9 @@ if __name__ == '__main__':
             pdf = np.where((ct >= ct_min) & (ct <= ct_max), pdf, 0.0)
         
         return pdf 
+    
+    def expo_func(x, N0, tau):
+        return N0 * np.exp(-x / tau)
 
     parser = argparse.ArgumentParser(description='Configure the parameters of the script.')
     parser.add_argument('--config-file', dest='config_file', help="path to the YAML file with configuration.", default='')
@@ -105,10 +109,24 @@ if __name__ == '__main__':
     pt_bins = config['pt_bins']
     ct_bins = config['ct_bins']
     selections_std = config['selection']
+    use_fitted_shift_nsigmaHe = config['use_fitted_shift_nsigmaHe']
     is_matter = config['is_matter']
+    bdt_middle_path = output_dir_name + "/BDT_file"
+    if not os.path.exists(bdt_middle_path):
+        os.makedirs(bdt_middle_path)
     output_dir_name = output_dir_name + f'/{is_matter}'
     if not os.path.exists(output_dir_name):
         os.makedirs(output_dir_name)
+    else: # else remove existing files inside output dir (but keep the directory itself)
+        for entry in os.listdir(output_dir_name):
+            path = os.path.join(output_dir_name, entry)
+            try:
+                if os.path.isfile(path) or os.path.islink(path):
+                    os.remove(path)
+                elif os.path.isdir(path):
+                    shutil.rmtree(path)
+            except Exception as e:
+                print(f"Warning: failed to remove {path}: {e}")
     use_BDT = config['use_BDT']
     new_training = config['new_training']
     new_WP_process = config['new_WP_process']
@@ -204,7 +222,7 @@ if __name__ == '__main__':
 
     output_dir_std = output_file.mkdir('std')
     if use_BDT:
-        BDT_QA_dir = output_dir_name + '/BDT_QA'
+        BDT_QA_dir = bdt_middle_path + '/BDT_QA'
         if not os.path.exists(BDT_QA_dir):
             os.makedirs(BDT_QA_dir)
         if save_working_points_fit:
@@ -217,6 +235,7 @@ if __name__ == '__main__':
     acceptance_arr = []
     raw_counts_arr = []
     raw_counts_err_arr = []
+    h_spectrum_list = []
     for i_pt in range(len(pt_bins)-1):
         corrected_counts_arr_pt = []
         corrected_counts_err_arr_pt = []
@@ -267,22 +286,33 @@ if __name__ == '__main__':
                     df_mcH = bin_mc_hdl_ML.get_data_frame()
                     df_mcH['fNSigmaHe'] = df_mcH['fNSigmaHe'] - df_mcH['fNSigmaHe'].mean()
                     bin_mc_hdl_ML.set_data_frame(df_mcH)
-                    df_dataH = bin_data_hdl_ML.get_data_frame()
-                    x_dataH = df_dataH['fNSigmaHe'].values
-                    y_dataH = np.histogram(x_dataH, bins=100, density=True)[0]
-                    x_dataH_hist = np.histogram(x_dataH, bins=100, density=True)[1][:-1]
-                    init_guess = [max(y_dataH), 0, 1, 0, 0, 0, 0]
-                    popt, _ = curve_fit(gauss_pol3, x_dataH_hist, y_dataH, p0=init_guess, bounds=([-np.inf, -1, 0, -np.inf, -np.inf, -np.inf, -np.inf], [np.inf, 1, np.inf, np.inf, np.inf, np.inf, np.inf]))
-                    A, mu, sigma, B, C, D, E = popt
-                    #pdf check for the shift
-                    plt.plot(x_dataH_hist, y_dataH, label='Background Data')
-                    plt.plot(x_dataH_hist, gauss_pol3(x_dataH_hist, *popt), label='Gaussian+Poly Fit', linestyle='--')
-                    plt.legend()
-                    plt.tight_layout()
-                    plt.savefig(f"{BDT_QA_dir}/Gauss_pol3_fit_data_df_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
-                    plt.close()
-                    df_dataH['fNSigmaHe'] = df_dataH['fNSigmaHe'] - mu
-                    bin_data_hdl_ML.set_data_frame(df_dataH)
+                    if use_fitted_shift_nsigmaHe:
+                        df_dataH = bin_data_hdl_ML.get_data_frame()
+                        x_dataH = df_dataH['fNSigmaHe'].values
+                        y_dataH = np.histogram(x_dataH, bins=100, density=True)[0]
+                        x_dataH_hist = np.histogram(x_dataH, bins=100, density=True)[1][:-1]
+                        init_guess = [max(y_dataH), 0, 1, 0, 0, 0, 0]
+                        popt, _ = curve_fit(gauss_pol3, x_dataH_hist, y_dataH, p0=init_guess, bounds=([-np.inf, -1, 0, -np.inf, -np.inf, -np.inf, -np.inf], [np.inf, 1, np.inf, np.inf, np.inf, np.inf, np.inf]))
+                        A, mu, sigma, B, C, D, E = popt
+                        #pdf check for the shift
+                        plt.plot(x_dataH_hist, y_dataH, label='Background Data')
+                        plt.plot(x_dataH_hist, gauss_pol3(x_dataH_hist, *popt), label='Gaussian+Poly Fit', linestyle='--')
+                        plt.legend()
+                        plt.tight_layout()
+                        plt.savefig(f"{BDT_QA_dir}/Gauss_pol3_fit_data_df_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
+                        plt.close()
+                        df_dataH['fNSigmaHe'] = df_dataH['fNSigmaHe'] - mu
+                        bin_data_hdl_ML.set_data_frame(df_dataH)
+                    else:
+                        df_dataH = bin_data_hdl_ML.get_data_frame()
+                        mask = (df_dataH['fNSigmaHe'] > -3) & (df_dataH['fNSigmaHe'] < 2)
+                        if mask.any():
+                            mean_shift = df_dataH.loc[mask, 'fNSigmaHe'].mean()
+                        else:
+                            # fallback to overall mean if no entries in the interval
+                            mean_shift = df_dataH['fNSigmaHe'].mean()
+                        df_dataH['fNSigmaHe'] = df_dataH['fNSigmaHe'] - mean_shift
+                        bin_data_hdl_ML.set_data_frame(df_dataH)
                     print("Let's do some cutting to balance the var range for data and MC samples ...")
                     print("***---------------Training Info------------------***")
                     print("Origin MC events: ", len(bin_mc_hdl_ML))
@@ -315,21 +345,21 @@ if __name__ == '__main__':
                     y_pred_test = model_hdl.predict(test_features, output_margin = True)
                     y_pred_train = model_hdl.predict(train_features, output_margin = True)
                     bdt_out_plot = pu.plot_output_train_test(model_hdl, train_test_data, 100, True, ["Signal", "Background"], True, density=True)
-                    bdt_out_plot.savefig(f"{output_dir_name}/bdt_output_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
+                    bdt_out_plot.savefig(f"{bdt_middle_path}/bdt_output_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
                     plt.close("all")
                     ### Applying the model to real data set
                     print("** Applying BDT model to data ...**")
                     bin_data_hdl.apply_model_handler(model_hdl, column_name="model_output")
                     bin_data_hdl.print_summary()
-                    bin_data_hdl.write_df_to_parquet_files(f'dataH_BDTapplied_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}', output_dir_name)
+                    bin_data_hdl.write_df_to_parquet_files(f'dataH_BDTapplied_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}', bdt_middle_path)
                     # Save test_labels and y_pred_test for later use
                     np.savez_compressed(
-                        f"{output_dir_name}/bdt_test_labels_preds_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.npz",
+                        f"{bdt_middle_path}/bdt_test_labels_preds_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.npz",
                         test_labels=test_labels,
                         y_pred_test=y_pred_test
                     )
                 else: 
-                    bdt_file = Path(f'{output_dir_name}/dataH_BDTapplied_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.parquet.gzip')
+                    bdt_file = Path(f'{bdt_middle_path}/dataH_BDTapplied_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.parquet.gzip')
                     bin_data_hdl = TreeHandler(bdt_file) if bdt_file.exists() else None
                 if bin_data_hdl is None or len(bin_data_hdl) == 0:
                     raise ValueError("No data available after applying preselections and BDT model.\n please check the input data or the preselections. ")
@@ -339,7 +369,7 @@ if __name__ == '__main__':
                     ##efficiencies vs score
                     #eff_arr, score_eff_arr = au.bdt_efficiency_array(test_labels, y_pred_test, n_points=npoints_for_WP)
                     if not new_training:
-                        bdt_test_file = f"{output_dir_name}/bdt_test_labels_preds_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.npz"
+                        bdt_test_file = f"{bdt_middle_path}/bdt_test_labels_preds_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.npz"
                         bdt_test_data = np.load(bdt_test_file)
                         test_labels = bdt_test_data['test_labels']
                         y_pred_test = bdt_test_data['y_pred_test']
@@ -434,9 +464,9 @@ if __name__ == '__main__':
                     df_working_point['product'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance']
                     df_working_point['product_up'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance_down']
                     df_working_point['product_down'] = df_working_point['BDT_efficiency'] * df_working_point['exp_significance_up']
-                    df_working_point.to_csv(f"{output_dir_name}/working_point_data_frame_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.csv")
+                    df_working_point.to_csv(f"{bdt_middle_path}/working_point_data_frame_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.csv")
                 else:
-                    wp_file = Path(f"{output_dir_name}/working_point_data_frame_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.csv")
+                    wp_file = Path(f"{bdt_middle_path}/working_point_data_frame_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.csv")
                     df_working_point = pd.read_csv(wp_file) if wp_file.exists() else None
                 if df_working_point is None or len(df_working_point) == 0:
                     raise ValueError("No working point data available after applying preselections and BDT model.\n please check the input data or the preselections. ")
@@ -481,13 +511,14 @@ if __name__ == '__main__':
                     ha="center",  # 水平对齐
                     va="center",  # 垂直对齐
                 )
-                plt.savefig(f"{output_dir_name}/exp_significance_vs_BDT_score_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
+                plt.savefig(f"{bdt_middle_path}/exp_significance_vs_BDT_score_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}.pdf")
                 plt.close()
                 matter_sel = 'fIsMatter == True' if is_matter == 'matter' else 'fIsMatter == False' if is_matter == 'antimatter' else ''
                 matter_sel_MC = 'fGenPt > 0' if is_matter == 'matter' else 'fGenPt < 0' if is_matter == 'antimatter' else ''
                 bin_data_hdl.apply_preselections(f"model_output > {max_score}", inplace=True)
                 if matter_sel != '':
                     bin_data_hdl.apply_preselections(matter_sel, inplace=True)
+                if matter_sel_MC != '':
                     bin_mc_hdl.apply_preselections(matter_sel_MC, inplace=True)
                     bin_mc_reco_hdl.apply_preselections(matter_sel_MC, inplace=True)
                     bin_mc_evnsel.apply_preselections(matter_sel_MC, inplace=True)
@@ -590,9 +621,10 @@ if __name__ == '__main__':
                 pinfo_alice.SetFillStyle(0)
                 pinfo_alice.SetTextAlign(11)
                 pinfo_alice.SetTextFont(42)
-                pinfo_alice.AddText('ALICE Performance')
-                sqrtsnn = "#sqrt{#it{s_{NN}}}"
-                pinfo_alice.AddText(f'Run 3, Pb--Pb @ {sqrtsnn} = 5.36 TeV')
+                # pinfo_alice.AddText('ALICE Performance')
+                # sqrtsnn = "#sqrt{#it{s_{NN}}}"
+                # pinfo_alice.AddText(f'Run 3, Pb--Pb @ {sqrtsnn} = 5.36 TeV')
+                pinfo_alice.AddText('LHC23_PbPb_pass5')
                 exponent = np.floor(np.log10(n_events))
                 n_events_scaled = n_events / 10**(exponent)
                 pinfo_alice.AddText('N_{ev} = ' + f'{n_events_scaled:.1f} ' + '#times 10^{' + f'{exponent:.0f}' + '}') 
@@ -626,6 +658,12 @@ if __name__ == '__main__':
                 acceptance_arr_pt.append(acc)
                 raw_counts_arr_pt.append(signal_int_val_3s)
                 raw_counts_err_arr_pt.append(signal_int_val_3s_error)
+            bin_output_dir.cd()
+            h_raw_counts.Write()
+            h_acc_eff.Write()
+            h_BDT_efficiency.Write()
+            h_spectrum.Write()
+            h_spectrum_list.append(h_spectrum)
         corrected_counts_arr.append(corrected_counts_arr_pt)
         corrected_counts_err_arr.append(corrected_counts_err_arr_pt)
         BDT_efficiency_arr.append(BDT_efficiency_arr_pt)
@@ -636,47 +674,60 @@ if __name__ == '__main__':
     tau_hist = ROOT.TH1D('tau_per_ptbin', ';#tau (ps);Counts', len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
     tau_err_hist = ROOT.TH1D('tau_err_per_ptbin', ';#tau error (ps);Counts', len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
     for i_pt_draw in range(len(pt_bins)-1):
-        ct_centers = []
-        ct_values = []
-        ct_errors = []
-        for i_ct in range(len(ct_bins[i_pt_draw])-1):
-            ct_center = 0.5 * (ct_bins[i_pt_draw][i_ct] + ct_bins[i_pt_draw][i_ct+1])
-            ct_centers.append(ct_center)
-            ct_values.append(corrected_counts_arr[i_pt_draw][i_ct])
-            ct_errors.append(corrected_counts_err_arr[i_pt_draw][i_ct])
-        ct_centers = np.array(ct_centers)
-        ct_values = np.array(ct_values)
-        ct_errors = np.array(ct_errors)
-        # Exponential fit: f(ct) = N0 * exp(-ct/tau)
-        def expo_func(x, N0, tau):
-            return N0 * np.exp(-x / tau)
-        # Initial guess
-        N0_guess = ct_values[0] if len(ct_values) > 0 else 1
-        tau_guess = 8
-        # Use Minuit for fit
-        def chi2(N0, tau):
-            model = expo_func(ct_centers, N0, tau)
-            return np.sum(((ct_values - model) / ct_errors) ** 2)
-        m = Minuit(chi2, N0=N0_guess, tau=tau_guess)
-        m.limits['N0'] = (0, None)
-        m.limits['tau'] = (0, 20)
-        m.migrad()
-        tau_val = m.values['tau']
-        tau_err = m.errors['tau']
-        tau_hist.SetBinContent(i_pt_draw+1, tau_val)
-        tau_hist.SetBinError(i_pt_draw+1, tau_err)
-        tau_err_hist.SetBinContent(i_pt_draw+1, tau_err)
-        tau_err_hist.SetBinError(i_pt_draw+1, 0)
-        # Draw fit QA plot
+        #Fit for the ct spectrum in pt bin
+        ct_centers, ct_values, ct_errors, ct_edges = utils.extract_info_TH1(h_spectrum_list[i_pt_draw])
+        try:
+            func = ROOT.TF1(f'fit_exp_pt_{i_pt_draw}', '[0]*exp(-x/[1])', float(ct_bins[i_pt_draw][0]), float(ct_bins[i_pt_draw][-1]))
+            func.SetParameter(0, ct_values.max())
+            func.SetParameter(1, 8.0)
+            # Perform integral fit ('I'); use Q (quiet) and S to get result
+            fit_res = h_spectrum_list[i_pt_draw].Fit(func, 'QIS')
+            # Extract fit parameters and errors
+            N0_fit = func.GetParameter(0)
+            tau_val = func.GetParameter(1)  # fitted ct (cm)
+            tau_err = func.GetParError(1)   # error on ct (cm)
+            # convert ct (cm) -> tau (ps): tau[s] = ct[cm] / c[cm/s]; tau[ps] = tau[s] * 1e12
+            c_cm_s = 2.99792458e10
+            tau_ps = tau_val / c_cm_s * 1e12
+            tau_err_ps = tau_err / c_cm_s * 1e12
+            # chi2 and ndf
+            chi2 = func.GetChisquare()
+            ndf = func.GetNDF()
+            chi2_str = f'chi2/ndf={chi2:.2f}/{int(ndf)}' if ndf and ndf > 0 else 'chi2/ndf=N/A'
+            # Fill histograms with tau in picoseconds
+            tau_hist.SetBinContent(i_pt_draw+1, tau_ps)
+            tau_hist.SetBinError(i_pt_draw+1, tau_err_ps)
+            tau_err_hist.SetBinContent(i_pt_draw+1, tau_err_ps)
+            tau_err_hist.SetBinError(i_pt_draw+1, 0)
+        except Exception as e:
+            print(f"ROOT fit failed for ct spectrum in pt bin {i_pt_draw}: {e}")
+            N0_fit = 0.0
+            tau_val = 0.0
+            tau_err = 0.0
+            # set converted values to zero as well
+            tau_ps = 0.0
+            tau_err_ps = 0.0
+            chi2_str = 'chi2/ndf=N/A'
+            tau_hist.SetBinContent(i_pt_draw+1, 0)
+            tau_hist.SetBinError(i_pt_draw+1, 0)
+            tau_err_hist.SetBinContent(i_pt_draw+1, 0)
+            tau_err_hist.SetBinError(i_pt_draw+1, 0)
+        # Draw fit QA plot (matplotlib)
         plt.errorbar(ct_centers, ct_values, yerr=ct_errors, fmt='o', label='Corrected counts')
-        plt.plot(ct_centers, expo_func(ct_centers, m.values['N0'], tau_val), label=f'Exp Fit: tau={tau_val:.1f}±{tau_err:.1f} ps')
+        try:
+            x_plot = np.linspace(ct_centers.min(), ct_centers.max(), 200)
+            # plot using original ct function but annotate with tau in ps
+            plt.plot(x_plot, expo_func(x_plot, N0_fit, tau_val), label=f'Exp Fit: tau={tau_ps:.2f}±{tau_err_ps:.2f} ps ({chi2_str})')
+        except Exception:
+            # fallback to plotting at bin centers
+            plt.plot(ct_centers, expo_func(ct_centers, N0_fit, tau_val), label=f'Exp Fit: tau={tau_ps:.2f}±{tau_err_ps:.2f} ps ({chi2_str})')
         plt.xlabel('ct (cm)')
         plt.ylabel('Corrected counts')
         plt.ylim(1, 1e4)
         plt.title(f'Pt bin {pt_bins[i_pt_draw]}-{pt_bins[i_pt_draw+1]} GeV/c')
         plt.text(
             0.05, 0.95,
-            f'Fit ct: {tau_val:.2f} ± {tau_err:.2f} ps',
+            f'Fit tau: {tau_ps:.2f} ± {tau_err_ps:.2f} ps\n{chi2_str}',
             transform=plt.gca().transAxes,
             fontsize=12,
             verticalalignment='top',
@@ -688,6 +739,187 @@ if __name__ == '__main__':
         plt.tight_layout()
         plt.savefig(f"{output_dir_name}/ct_spectrum_fit_pt_{pt_bins[i_pt_draw]}_{pt_bins[i_pt_draw+1]}.pdf")
         plt.close()
+        # Also draw fit result using ROOT TCanvas and save into ROOT file (pt bin folder) and as PDF
+        try:
+            # prepare names and directories
+            pt_min = pt_bins[i_pt_draw]
+            pt_max = pt_bins[i_pt_draw+1]
+            pt_dir_name = f'pt_{pt_min}_{pt_max}'
+            bin_dir = output_file.GetDirectory('std').GetDirectory(pt_dir_name)
+            # histogram and fit function for ROOT plotting
+            h = h_spectrum_list[i_pt_draw]
+            # recreate TF1 for drawing (use fitted params if available)
+            ct_low = float(ct_bins[i_pt_draw][0])
+            ct_high = float(ct_bins[i_pt_draw][-1])
+            f_root = ROOT.TF1(f'f_exp_root_pt_{i_pt_draw}', '[0]*exp(-x/[1])', ct_low, ct_high)
+            f_root.SetParameter(0, N0_fit if 'N0_fit' in locals() else 1.0)
+            f_root.SetParameter(1, tau_val if 'tau_val' in locals() else 1.0)
+
+            # create canvas and style
+            c = ROOT.TCanvas(f'c_ct_fit_root_pt_{pt_min}_{pt_max}', f'CT fit pt {pt_min}-{pt_max}', 800, 550)
+            c.SetLeftMargin(0.14)
+            c.SetBottomMargin(0.12)
+            c.SetTopMargin(0.08)
+            c.SetRightMargin(0.05)
+            c.SetLogy(1)
+            ROOT.gPad.SetGridx()
+            ROOT.gPad.SetGridy()
+
+            # draw histogram
+            h.SetStats(0)
+            h.SetLineColor(ROOT.kBlue+1)
+            h.SetMarkerStyle(20)
+            h.SetMarkerSize(0.8)
+            h.SetTitle(f'Corrected ct spectrum pt {pt_min} - {pt_max} GeV/c')
+            h.GetXaxis().SetTitle('ct (cm)')
+            h.GetYaxis().SetTitle('Corrected counts')
+            h.GetXaxis().SetTitleSize(0.045)
+            h.GetYaxis().SetTitleSize(0.045)
+            h.GetXaxis().SetLabelSize(0.04)
+            h.GetYaxis().SetLabelSize(0.04)
+            h.SetMinimum(1)  # keep consistent with matplotlib ylim
+            h.Draw('E1')
+
+            # draw fit function on top
+            f_root.SetLineStyle(ROOT.kDashed)
+            f_root.SetLineColor(kOrangeC)
+            f_root.SetLineWidth(2)
+            f_root.Draw('Same')
+
+            # create TPaveText with fit info
+            pave = ROOT.TPaveText(0.15, 0.15, 0.5, 0.35, 'NDC')
+            pave.SetBorderSize(0)
+            pave.SetFillStyle(0)
+            pave.SetTextAlign(12)
+            pave.SetTextFont(42)
+            # use values computed earlier (converted to ps) if available
+            tau_txt = f'{tau_ps:.2f} #pm {tau_err_ps:.2f} ps' if 'tau_ps' in locals() else 'N/A'
+            N0_txt = f'{N0_fit:.2g}' if 'N0_fit' in locals() else 'N/A'
+            chi_ndf_txt = chi2_str if 'chi2_str' in locals() else 'chi2/ndf=N/A'
+            # pave.AddText(f'N0 = {N0_txt}')
+            pave.AddText(f'#tau = {tau_txt}')
+            pave.AddText(chi_ndf_txt)
+            pave.Draw()
+
+            # draw a small legend
+            leg = ROOT.TLegend(0.70, 0.72, 0.95, 0.9)
+            leg.SetBorderSize(0)
+            leg.SetFillStyle(0)
+            leg.SetTextFont(42)
+            leg.AddEntry(h, 'Corrected counts', 'lep')
+            leg.AddEntry(f_root, 'Exp fit', 'l')
+            leg.Draw()
+
+            # write canvas to ROOT file under pt folder and also save as pdf
+            bin_dir.cd()
+            c.Write()
+            # also save overall pdf in output dir for quick view
+            c.SaveAs(f"{output_dir_name}/ct_spectrum_fit_root_pt_{pt_min}_{pt_max}.pdf")
+            c.Close()
+        except Exception as e:
+            print(f"Failed to produce ROOT canvas for pt bin {i_pt_draw}: {e}")
+        # QA: compare per-bin histogram integrals to fitted function integrals and save a compact combined plot
+        try:
+            h = h_spectrum_list[i_pt_draw]
+            nb = h.GetNbinsX()
+            centers = np.zeros(nb)
+            contents = np.zeros(nb)
+            errors = np.zeros(nb)
+            lows = np.zeros(nb)
+            highs = np.zeros(nb)
+            widths = np.zeros(nb)
+            fit_ints = np.zeros(nb)
+            diffs = np.zeros(nb)
+            rel_diffs = np.zeros(nb)
+
+            # analytic integral of N0 * exp(-x / tau) between a and b
+            def expo_integral_bin(N0, tau, a, b):
+                if tau == 0 or np.isnan(tau):
+                    return np.nan
+                return N0 * tau * (np.exp(-a / tau) - np.exp(-b / tau))
+
+            for ib in range(nb):
+                idx = ib + 1
+                low = h.GetBinLowEdge(idx)
+                width = h.GetBinWidth(idx)
+                high = low + width
+                cen = low + 0.5 * width
+                val = h.GetBinContent(idx)
+                err = h.GetBinError(idx)
+
+                centers[ib] = cen
+                contents[ib] = val
+                errors[ib] = err
+                lows[ib] = low
+                highs[ib] = high
+                widths[ib] = width
+
+                # compute fit integral for this bin: prefer analytic result if fitted params available
+                fit_int = np.nan
+                try:
+                    if 'N0_fit' in locals() and 'tau_val' in locals() and not np.isnan(N0_fit) and not np.isnan(tau_val) and tau_val != 0:
+                        fit_int = expo_integral_bin(N0_fit, tau_val, low, high)
+                    elif 'f_root' in locals():
+                        fit_int = f_root.Integral(low, high)
+                except Exception:
+                    fit_int = np.nan
+
+                fit_ints[ib] = fit_int
+                diffs[ib] = (val * width) - fit_int
+                rel_diffs[ib] = (diffs[ib] / fit_int) if (fit_int != 0 and not np.isnan(fit_int)) else np.nan
+
+            # summary statistics
+            finite_rel = rel_diffs[np.isfinite(rel_diffs)]
+            mean_rel = np.nan if finite_rel.size == 0 else np.mean(finite_rel)
+            rms_rel = np.nan if finite_rel.size == 0 else np.sqrt(np.mean((finite_rel - mean_rel)**2))
+
+            # Styling
+            # plt.style.use('seaborn-v0_8-darkgrid')
+            fontsize = 14
+
+            # Combined figure: top = overlay histogram vs fit, bottom left = absolute diff, bottom right = relative diff
+            fig = plt.figure(constrained_layout=True, figsize=(12, 10))
+            gs = fig.add_gridspec(2, 2, height_ratios=[2, 1])
+            ax_top = fig.add_subplot(gs[0, :])
+            ax_bot_left = fig.add_subplot(gs[1, 0])
+            ax_bot_right = fig.add_subplot(gs[1, 1])
+
+            # Top overlay
+            ax_top.errorbar(centers, contents * widths, yerr=errors, fmt='o', label='Histogram counts', color='#1f77b4', capsize=3)
+            ax_top.plot(centers, fit_ints, 's-', label='Fit integral per bin', color='#ff7f0e', lw=2, markersize=6)
+            ax_top.set_xlabel('ct (cm)', fontsize=fontsize)
+            ax_top.set_ylabel('Integral_Counts / bin', fontsize=fontsize)
+            ax_top.set_title(f'Integral QA: histogram vs fit — pt {pt_min}-{pt_max} GeV/c', fontsize=fontsize+1)
+            ax_top.legend(fontsize=12)
+            ax_top.grid(True, which='both', linestyle='--', alpha=0.4)
+
+            # Absolute difference
+            ax_bot_left.errorbar(centers, diffs, yerr=errors, fmt='o', color='#2ca02c', capsize=3, label='Histogram - Fit')
+            ax_bot_left.axhline(0, color='k', linestyle='--', alpha=0.7)
+            ax_bot_left.set_xlabel('ct (cm)', fontsize=fontsize)
+            ax_bot_left.set_ylabel('Histogram - Fit (counts)', fontsize=fontsize)
+            ax_bot_left.set_title('Absolute difference per bin', fontsize=fontsize)
+            ax_bot_left.grid(True, linestyle='--', alpha=0.4)
+            ax_bot_left.annotate(f'Mean diff = {np.nanmean(diffs):.2g}\nRMS = {np.nanstd(diffs):.2g}',
+                                 xy=(0.98, 0.95), xycoords='axes fraction', ha='right', va='top',
+                                 bbox=dict(boxstyle='round', fc='white', alpha=0.8), fontsize=11)
+
+            # Relative difference
+            ax_bot_right.plot(centers, rel_diffs, 'o-', color='#d62728', label='(Hist - Fit) / Fit')
+            ax_bot_right.axhline(0, color='k', linestyle='--', alpha=0.7)
+            ax_bot_right.set_xlabel('ct (cm)', fontsize=fontsize)
+            ax_bot_right.set_ylabel('(Hist - Fit) / Fit', fontsize=fontsize)
+            ax_bot_right.set_title('Relative integral difference', fontsize=fontsize)
+            ax_bot_right.grid(True, linestyle='--', alpha=0.4)
+            ax_bot_right.annotate(f'Mean rel = {mean_rel:.3f}\nRMS = {rms_rel:.3f}',
+                                  xy=(0.98, 0.95), xycoords='axes fraction', ha='right', va='top',
+                                  bbox=dict(boxstyle='round', fc='white', alpha=0.8), fontsize=11)
+
+            # Save a single combined file (we intentionally do not produce the separate histogram-of-differences plot)
+            plt.savefig(f"{output_dir_name}/integral_vs_fit_and_diffs_pt_{pt_min}_{pt_max}.pdf", dpi=150)
+            plt.close(fig)
+        except Exception as _e:
+            print(f"Integral-fit QA failed for pt {pt_min}-{pt_max}: {_e}")
     # Save tau histograms to ROOT file
     output_dir_std.cd()
     tau_hist.Write()
