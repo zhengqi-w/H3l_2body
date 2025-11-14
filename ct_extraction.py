@@ -671,7 +671,7 @@ if __name__ == '__main__':
         raw_counts_arr.append(raw_counts_arr_pt)
         raw_counts_err_arr.append(raw_counts_err_arr_pt)
     # --- Fit corrected ct spectrum with exponential function for each pt bin ---
-    tau_hist = ROOT.TH1D('tau_per_ptbin', ';#tau (ps);Counts', len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
+    tau_hist = ROOT.TH1D('tau_per_ptbin', ';Pt (GeV/c);#tau (ps)', len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
     tau_err_hist = ROOT.TH1D('tau_err_per_ptbin', ';#tau error (ps);Counts', len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
     for i_pt_draw in range(len(pt_bins)-1):
         #Fit for the ct spectrum in pt bin

@@ -1,14 +1,14 @@
 input_files_data:
   [
-    # "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root"
-    "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root"
+    "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root"
+    # "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root"
   ]
 #input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D.root"]
-#input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"]
-input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"]
-#input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_HadronPID.root"
-input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_CustomV0s.root"
-output_dir: "../results/ep5/ct_extraction_G4list_CustomV0s"
+input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"]
+# input_files_mc: ["/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"]
+input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_HadronPID.root"
+# input_analysis_results_file: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_CustomV0s.root"
+output_dir: "../results/ep5/ct_extraction_G4list_test"
 output_file: "ct_analysis"
 
 #both config
@@ -30,9 +30,9 @@ n_bins_mass_mc: 80
 mass_range: [2.95, 3.05]
 
 use_BDT: True
-new_training: True
-new_WP_process: True
-save_working_points_fit: True
+new_training: False
+new_WP_process: False
+save_working_points_fit: False
 use_fitted_shift_nsigmaHe: False
 npoints_for_WP: 100
 training_preselections: 'fTPCsignalPi<1000 and abs(fNSigmaHe)<5 and fCosPA>0.99'

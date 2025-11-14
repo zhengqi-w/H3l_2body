@@ -15,13 +15,15 @@ import utils as utils
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass4/AO2D.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D.root"
-mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"
+# mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D_CustomV0s.root"
-# mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"
+mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"
+# mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D_V0s_full.root"
+# mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_V0s_full.root"
 output_dir = "../../results/ep5/MC_QC"
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
-suffix = 'LHC25g11_G4list'
+suffix = 'LHC25g11_G4list_CustomV0s'
 #suffix = 'LHC25g11_G4list'
 #suffix = 'LHC24i5_latest'
 data_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root"
@@ -42,26 +44,26 @@ mc_hdl = TreeHandler(mc_file_path,'O2mchypcands', folder_name='DF*')
 utils.correct_and_convert_df(mc_hdl, calibrate_he3_pt=False, isMC=True)
 mc_hdl_evsel = mc_hdl.apply_preselections('fIsSurvEvSel==True', inplace=False)
 mc_reco_hdl = mc_hdl.apply_preselections('fIsReco == 1', inplace=False)
-###GentPt distribution
-gent_pt = mc_hdl.get_data_frame()['fGenPt']
-plt.figure(figsize=(8,6))
-plt.hist(gent_pt, bins=200, histtype='step', color='blue')
-plt.xlabel('GentPt (GeV/c)')
-plt.ylabel('Entries')
-plt.title('GentPt Distribution' + '_' + suffix)
-plt.grid(True)
-plt.savefig(f'{output_dir}/GentPt_{suffix}.pdf')
-plt.close()
-### GentCt distribution
-gent_ct = mc_hdl.get_data_frame()['fGenCt']
-plt.figure(figsize=(8,6))
-plt.hist(gent_ct, bins=200, histtype='step', color='blue')
-plt.xlabel('GentCt (cm)')
-plt.ylabel('Entries')
-plt.title('GentCt Distribution' + '_' + suffix)
-plt.grid(True)
-plt.savefig(f'{output_dir}/GentCt_{suffix}.pdf')
-plt.close()
+# ###GentPt distribution
+# gent_pt = mc_hdl.get_data_frame()['fGenPt']
+# plt.figure(figsize=(8,6))
+# plt.hist(gent_pt, bins=200, histtype='step', color='blue')
+# plt.xlabel('GentPt (GeV/c)')
+# plt.ylabel('Entries')
+# plt.title('GentPt Distribution' + '_' + suffix)
+# plt.grid(True)
+# plt.savefig(f'{output_dir}/GentPt_{suffix}.pdf')
+# plt.close()
+# ### GentCt distribution
+# gent_ct = mc_hdl.get_data_frame()['fGenCt']
+# plt.figure(figsize=(8,6))
+# plt.hist(gent_ct, bins=200, histtype='step', color='blue')
+# plt.xlabel('GentCt (cm)')
+# plt.ylabel('Entries')
+# plt.title('GentCt Distribution' + '_' + suffix)
+# plt.grid(True)
+# plt.savefig(f'{output_dir}/GentCt_{suffix}.pdf')
+# plt.close()
 ###
 ###ct Resolution = (GentCt - Ct)/ GentCt vs GentCt
 gent_ct_reco = mc_reco_hdl.get_data_frame()['fGenCt']
@@ -232,16 +234,16 @@ plt.grid(True)
 plt.savefig(f'{output_dir}/Decay_Radious_{suffix}.pdf')
 plt.close()
 ###H3l radious data
-data_hdl = TreeHandler(data_file_path,'O2hypcands', folder_name='DF*')
-utils.correct_and_convert_df(data_hdl, calibrate_he3_pt=False, isMC=False)
-rad_reco_data = data_hdl.get_data_frame()['fDecRad']
-plt.figure(figsize=(8,6))
-plt.hist(rad_reco_data, bins=200, histtype='step', color='blue')
-plt.xlabel('Decay Radious (cm)')
-plt.ylabel('Entries')
-plt.title('Decay Radious Data Distribution')
-plt.grid(True)
-plt.savefig(f'{output_dir}/Decay_Radious_data.pdf')
-plt.close()
+# data_hdl = TreeHandler(data_file_path,'O2hypcands', folder_name='DF*')
+# utils.correct_and_convert_df(data_hdl, calibrate_he3_pt=False, isMC=False)
+# rad_reco_data = data_hdl.get_data_frame()['fDecRad']
+# plt.figure(figsize=(8,6))
+# plt.hist(rad_reco_data, bins=200, histtype='step', color='blue')
+# plt.xlabel('Decay Radious (cm)')
+# plt.ylabel('Entries')
+# plt.title('Decay Radious Data Distribution')
+# plt.grid(True)
+# plt.savefig(f'{output_dir}/Decay_Radious_data.pdf')
+# plt.close()
 
 

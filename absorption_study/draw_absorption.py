@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
     # prepare output ROOT and h_tao_pt (tau in ps per pt bin)
     n_pt_bins = len(pt_bins) - 1
-    h_tao_pt = ROOT.TH1F('h_tao_pt', 'He3 lifetime #tau (ps) per pT bin', n_pt_bins, np.array(pt_bins, dtype=np.float32))
+    h_tao_pt = ROOT.TH1F('h_tao_pt', 'He3 lifetime #tau (ps) per Pt bin; Pt (GeV/c); #tau', n_pt_bins, np.array(pt_bins, dtype=np.float32))
 
     # speed-of-light constant for ct->tau conversion
     c_cm_s = 2.99792458e10

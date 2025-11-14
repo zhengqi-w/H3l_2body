@@ -4,6 +4,19 @@ import ctypes
 import numpy as np
 import pandas as pd
 from hipe4ml.tree_handler import TreeHandler
+import os as _os
+import tempfile
+_cc_path = _os.path.join(_os.path.dirname(__file__), 'its_helpers.cc')
+# Declare C++ helpers only if they are not already available in the ROOT namespace.
+# This prevents duplicate declaration errors when this module and other scripts
+# (e.g. test.py) both try to Declare the same file.
+if not hasattr(ROOT, 'CountITSHits'):
+    if _os.path.exists(_cc_path):
+        with open(_cc_path, 'r') as _f:
+            ROOT.gInterpreter.Declare(_f.read())
+    else:
+        # if file not present, raise and let callers handle it
+        raise FileNotFoundError(_cc_path)
 
 kBlueC = ROOT.TColor.GetColor('#1f78b4')
 kOrangeC = ROOT.TColor.GetColor('#ff7f00')
@@ -236,122 +249,211 @@ def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False
     kDefaultPID = 15
     kPionPID = 2
     kTritonPID = 6
-
-    if not type(df) == pd.DataFrame:
-        df = df._full_data_frame
-
-    if 'fFlags' in df.columns:
-        df['fHePIDHypo'] = np.right_shift(df['fFlags'], 4)
-        df['fPiPIDHypo'] = np.bitwise_and(df['fFlags'], 0b1111)
-
-    # correct 3He momentum    
-
-    if calibrate_he3_pt:
-        # print(df.query('fIsReco==True')['fHePIDHypo'])
-        no_pid_mask = np.logical_and(df['fHePIDHypo'] != kDefaultPID, df['fHePIDHypo'] != kPionPID)
-
-        if (no_pid_mask.sum() == 0):
-            print("PID in tracking not detected, using old momentum re-calibration")
-            df["fPtHe3"] += 2.98019e-02 + 7.66100e-01 * np.exp(-1.31641e+00 * df["fPtHe3"]) ### functional form given by mpuccio
-        else:
-            print("PID in tracking detected, using new momentum re-calibration")
-            df_Trit_PID = df.query('fHePIDHypo==6')
-            df_else = df.query('fHePIDHypo!=6')
-            ##pt_new = pt + kp0 + kp1 * pt + kp2 * pt^2 curveParams = {'kp0': -0.200281,'kp1': 0.103039,'kp2': -0.012325}, functional form given by G.A. Lucia
-            df_Trit_PID["fPtHe3"] += -0.1286 - 0.1269 * df_Trit_PID["fPtHe3"] + 0.06 * df_Trit_PID["fPtHe3"]**2
-            df_new = pd.concat([df_Trit_PID, df_else])
-            ## assign the new dataframe to the original one
-            df[:] = df_new.values
-
-        
-    print(df)
-    # 3He momentum
-    df.eval('fPxHe3 = fPtHe3 * cos(fPhiHe3)', inplace=True)
-    df.eval('fPyHe3 = fPtHe3 * sin(fPhiHe3)', inplace=True)
-    df.eval('fPzHe3 = fPtHe3 * sinh(fEtaHe3)', inplace=True)
-    df.eval('fPHe3 = fPtHe3 * cosh(fEtaHe3)', inplace=True)
-    df.eval('fEnHe3 = sqrt(fPHe3**2 + 2.8083916**2)', inplace=True)
-    df.eval('fEnHe4 = sqrt(fPHe3**2 + 3.7273794**2)', inplace=True)
-    # pi momentum
-    df.eval('fPxPi = fPtPi * cos(fPhiPi)', inplace=True)
-    df.eval('fPyPi = fPtPi * sin(fPhiPi)', inplace=True)
-    df.eval('fPzPi = fPtPi * sinh(fEtaPi)', inplace=True)
-    df.eval('fPPi = fPtPi * cosh(fEtaPi)', inplace=True)
-    df.eval('fEnPi = sqrt(fPPi**2 + 0.139570**2)', inplace=True)
-    # hypertriton momentum
-    df.eval('fPx = fPxHe3 + fPxPi', inplace=True)
-    df.eval('fPy = fPyHe3 + fPyPi', inplace=True)
-    df.eval('fPz = fPzHe3 + fPzPi', inplace=True)
-    df.eval('fP = sqrt(fPx**2 + fPy**2 + fPz**2)', inplace=True)
-    df.eval('fEn = fEnHe3 + fEnPi', inplace=True)
-    df.eval('fEn4 = fEnHe4 + fEnPi', inplace=True)
-    # Momentum variables to be stored
-    df.eval('fPt = sqrt(fPx**2 + fPy**2)', inplace=True)
-    df.eval('fEta = arccosh(fP/fPt)', inplace=True)
-    df.eval('fCosLambda = fPt/fP', inplace=True)
-    df.eval('fCosLambdaHe = fPtHe3/fPHe3', inplace=True)
-
-    df['fNSigmaHe4'] = computeNSigmaHe4(df)
-
-    # Variables of interest
-    df.eval('fDecLen = sqrt(fXDecVtx**2 + fYDecVtx**2 + fZDecVtx**2)', inplace=True)
-    if not isH4L:
-        df.eval('fCt = fDecLen * 2.99131 / fP', inplace=True)
-    else:
-        print('Using H4L decay length')
-        df.eval('fCt = fDecLen * 3.922 / fP', inplace=True)
-
-    df.eval('fDecRad = sqrt(fXDecVtx**2 + fYDecVtx**2)', inplace=True)
-    df.eval('fCosPA = (fPx * fXDecVtx + fPy * fYDecVtx + fPz * fZDecVtx) / (fP * fDecLen)', inplace=True)
-    df.eval('fMassH3L = sqrt(fEn**2 - fP**2)', inplace=True)
-    df.eval('fMassH4L = sqrt(fEn4**2 - fP**2)', inplace=True)
-    print(df.columns)
-
-    ## signed TPC mom
-    df.eval('fTPCSignMomHe3 = fTPCmomHe * (-1 + 2*fIsMatter)', inplace=True)
-    df.eval('fGloSignMomHe3 = fPHe3 / 2 * (-1 + 2*fIsMatter)', inplace=True)
-
-    if "fITSclusterSizesHe" in df.columns:
-    ## loop over the candidates and compute the average cluster size
-        clSizesHe = df['fITSclusterSizesHe'].to_numpy()
-        clSizesPi = df['fITSclusterSizesPi'].to_numpy()
-        clSizeHeAvg = np.zeros(len(clSizesHe))
-        clSizePiAvg = np.zeros(len(clSizesPi))
-        nHitsHe = np.zeros(len(clSizesHe))
-        nHitsPi = np.zeros(len(clSizesPi))
-        for iLayer in range(7):
-            clSizeHeAvg += np.right_shift(clSizesHe, 4*iLayer) & 0b1111
-            clSizePiAvg += np.right_shift(clSizesPi, 4*iLayer) & 0b1111
-            nHitsHe += np.right_shift(clSizesHe, 4*iLayer) & 0b1111 > 0
-            nHitsPi += np.right_shift(clSizesPi, 4*iLayer) & 0b1111 > 0
-
-        clSizeHeAvg = np.where(nHitsHe > 0, clSizeHeAvg / nHitsHe, clSizeHeAvg)
-        clSizePiAvg = np.where(nHitsPi > 0, clSizePiAvg / nHitsPi, clSizePiAvg)
-        df['fAvgClusterSizeHe'] = clSizeHeAvg
-        df['fAvgClusterSizePi'] = clSizePiAvg
-        df['nITSHitsHe'] = nHitsHe
-        df['nITSHitsPi'] = nHitsPi
-        df.eval('fAvgClSizeCosLambda = fAvgClusterSizeHe * fCosLambdaHe', inplace=True)
-
-    if "fPsiFT0C" in df.columns:
-        df.eval('fPhi = arctan2(fPy, fPx)', inplace=True)
-        df.eval('fV2 = cos(2*(fPhi - fPsiFT0C))', inplace=True)
-
-
-    if isMC:
-        df.eval('fGenDecLen = sqrt(fGenXDecVtx**2 + fGenYDecVtx**2 + fGenZDecVtx**2)', inplace=True)
-        df.eval('fGenPz = fGenPt * sinh(fGenEta)', inplace=True)
-        df.eval('fGenP = sqrt(fGenPt**2 + fGenPz**2)', inplace=True)
-        df.eval("fAbsGenPt = abs(fGenPt)", inplace=True)
-
+    
+    if isinstance(df, ROOT.RDataFrame):
+        coloumn_name = list(df.GetColumnNames())
+        print("Columns before correction:", coloumn_name)
+        if 'fFlags' in coloumn_name:
+            df = df.Define("fHePIDHypo", "(int)(fFlags >> 4)") \
+                     .Define("fPiPIDHypo", "(int)(fFlags & 0xF)")
+        # calibrate 3He pt: per-row conditional.  Use a safe per-row expression:
+        if calibrate_he3_pt:
+            # if triton hypothesis apply polynomial correction, otherwise apply default correction
+            df = df.Define("fPtHe3",
+                             "((fHePIDHypo==6) ? (fPtHe3 + (-0.1286 - 0.1269 * fPtHe3 + 0.06 * fPtHe3*fPtHe3)) "
+                             ": (fPtHe3 + 2.98019e-02 + 7.66100e-01 * exp(-1.31641e+00 * fPtHe3))))")
+        # 3He momentum & energies
+        df = df.Define("fPxHe3", "fPtHe3 * cos(fPhiHe3)") \
+                 .Define("fPyHe3", "fPtHe3 * sin(fPhiHe3)") \
+                 .Define("fPzHe3", "fPtHe3 * sinh(fEtaHe3)") \
+                 .Define("fPHe3",  "fPtHe3 * cosh(fEtaHe3)") \
+                 .Define("fEnHe3", "sqrt(fPHe3*fPHe3 + 2.8083916*2.8083916)") \
+                 .Define("fEnHe4", "sqrt(fPHe3*fPHe3 + 3.7273794*3.7273794)")
+        # pion momentum & energy
+        df = df.Define("fPxPi", "fPtPi * cos(fPhiPi)") \
+                 .Define("fPyPi", "fPtPi * sin(fPhiPi)") \
+                 .Define("fPzPi", "fPtPi * sinh(fEtaPi)") \
+                 .Define("fPPi",  "fPtPi * cosh(fEtaPi)") \
+                 .Define("fEnPi", "sqrt(fPPi*fPPi + 0.139570*0.139570)")
+        # hypertriton kinematics
+        df = df.Define("fPx", "fPxHe3 + fPxPi") \
+                 .Define("fPy", "fPyHe3 + fPyPi") \
+                 .Define("fPz", "fPzHe3 + fPzPi") \
+                 .Define("fP",  "sqrt(fPx*fPx + fPy*fPy + fPz*fPz)") \
+                 .Define("fEn", "fEnHe3 + fEnPi") \
+                 .Define("fEn4", "fEnHe4 + fEnPi")
+        # derived momentum variables
+        df = df.Define("fPt", "sqrt(fPx*fPx + fPy*fPy)") \
+                 .Define("fEta", "acosh(fP / fPt)") \
+                 .Define("fCosLambda", "fPt / fP") \
+                 .Define("fCosLambdaHe", "fPtHe3 / fPHe3")
+        # decay lengths, ct, mass
         if not isH4L:
-            df.eval('fGenCt = fGenDecLen * 2.99131 / fGenP', inplace=True)
+            df = df.Define("fDecLen", "sqrt(fXDecVtx*fXDecVtx + fYDecVtx*fYDecVtx + fZDecVtx*fZDecVtx)") \
+                     .Define("fCt", "fDecLen * 2.99131 / fP")
         else:
-            df.eval('fGenCt = fGenDecLen * 3.922 / fGenP', inplace=True)
-
-
-    # remove useless columns
-    df.drop(columns=['fPxHe3', 'fPyHe3', 'fPzHe3', 'fEnHe3', 'fPxPi', 'fPyPi', 'fPzPi', 'fPPi', 'fEnPi', 'fPx', 'fPy', 'fPz', 'fP', 'fEn'])
+            df = df.Define("fDecLen", "sqrt(fXDecVtx*fXDecVtx + fYDecVtx*fYDecVtx + fZDecVtx*fZDecVtx)") \
+                     .Define("fCt", "fDecLen * 3.922 / fP")
+        df = df.Define("fDecRad", "sqrt(fXDecVtx*fXDecVtx + fYDecVtx*fYDecVtx)") \
+                 .Define("fCosPA", "(fPx * fXDecVtx + fPy * fYDecVtx + fPz * fZDecVtx) / (fP * fDecLen)") \
+                 .Define("fMassH3L", "sqrt(fEn*fEn - fP*fP)") \
+                 .Define("fMassH4L", "sqrt(fEn4*fEn4 - fP*fP)")
+        # simple signed momenta
+        df = df.Define("fTPCSignMomHe3", "fTPCmomHe * (-1 + 2*fIsMatter)") \
+                 .Define("fGloSignMomHe3", "fPHe3 / 2. * (-1 + 2*fIsMatter)")
+        # if MC add generator-level derived vars
+        if isMC:
+            df = df.Define("fGenDecLen", "sqrt(fGenXDecVtx*fGenXDecVtx + fGenYDecVtx*fGenYDecVtx + fGenZDecVtx*fGenZDecVtx)") \
+                     .Define("fGenPz", "fGenPt * sinh(fGenEta)") \
+                     .Define("fGenP", "sqrt(fGenPt*fGenPt + fGenPz*fGenPz)") \
+                     .Define("fAbsGenPt", "abs(fGenPt)")
+            if not isH4L:
+                df = df.Define("fGenCt", "fGenDecLen * 2.99131 / fGenP")
+            else:
+                df = df.Define("fGenCt", "fGenDecLen * 3.922 / fGenP")
+        # Define df columns using the C++ helpers if the bit-packed fields exist
+        # Note: these Define calls will silently fail if the input RDataFrame doesn't have those columns
+        if 'fITSclusterSizesHe' in coloumn_name and 'fITSclusterSizesPi' in coloumn_name:
+            df = df.Define("fAvgClusterSizeHe", "AvgITSClusterSize(fITSclusterSizesHe)") \
+                         .Define("nITSHitsHe", "CountITSHits(fITSclusterSizesHe)") \
+                         .Define("fAvgClusterSizePi", "AvgITSClusterSize(fITSclusterSizesPi)") \
+                         .Define("nITSHitsPi", "CountITSHits(fITSclusterSizesPi)") \
+                         .Define("fAvgClSizeCosLambda", "fAvgClusterSizeHe * fCosLambdaHe")
+        # # remove temporary momentum/energy columns from the RDataFrame if possible
+        # _cols_to_remove = ['fPxHe3', 'fPyHe3', 'fPzHe3', 'fEnHe3',
+        #                    'fPxPi', 'fPyPi', 'fPzPi', 'fPPi', 'fEnPi',
+        #                    'fPx', 'fPy', 'fPz', 'fP', 'fEn']
+        # _tmpf = tempfile.NamedTemporaryFile(suffix='.root', delete=False)
+        # _tmpf.close()
+        # _tmpname = _tmpf.name
+        # _cols_after_define = list(df.GetColumnNames())
+        # _keep_cols = [c for c in _cols_after_define if c not in _cols_to_remove]
+        # df.Snapshot("tree", _tmpname, _keep_cols)
+        # df = ROOT.RDataFrame("tree", _tmpname)
+        # try:
+        #     _os.remove(_tmpname)
+        # except OSError:
+        #     pass
+        colounm_name_after = list(df.GetColumnNames())
+        print("Columns after correction:", colounm_name_after)
+        return df
+    else:
+        if not type(df) == pd.DataFrame:
+            df = df._full_data_frame
+        
+    
+        if 'fFlags' in df.columns:
+            df['fHePIDHypo'] = np.right_shift(df['fFlags'], 4)
+            df['fPiPIDHypo'] = np.bitwise_and(df['fFlags'], 0b1111)
+    
+        # correct 3He momentum    
+    
+        if calibrate_he3_pt:
+            # print(df.query('fIsReco==True')['fHePIDHypo'])
+            no_pid_mask = np.logical_and(df['fHePIDHypo'] != kDefaultPID, df['fHePIDHypo'] != kPionPID)
+    
+            if (no_pid_mask.sum() == 0):
+                print("PID in tracking not detected, using old momentum re-calibration")
+                df["fPtHe3"] += 2.98019e-02 + 7.66100e-01 * np.exp(-1.31641e+00 * df["fPtHe3"]) ### functional form given by mpuccio
+            else:
+                print("PID in tracking detected, using new momentum re-calibration")
+                df_Trit_PID = df.query('fHePIDHypo==6')
+                df_else = df.query('fHePIDHypo!=6')
+                ##pt_new = pt + kp0 + kp1 * pt + kp2 * pt^2 curveParams = {'kp0': -0.200281,'kp1': 0.103039,'kp2': -0.012325}, functional form given by G.A. Lucia
+                df_Trit_PID["fPtHe3"] += -0.1286 - 0.1269 * df_Trit_PID["fPtHe3"] + 0.06 * df_Trit_PID["fPtHe3"]**2
+                df_new = pd.concat([df_Trit_PID, df_else])
+                ## assign the new dataframe to the original one
+                df[:] = df_new.values
+    
+            
+        print(df)
+        # 3He momentum
+        df.eval('fPxHe3 = fPtHe3 * cos(fPhiHe3)', inplace=True)
+        df.eval('fPyHe3 = fPtHe3 * sin(fPhiHe3)', inplace=True)
+        df.eval('fPzHe3 = fPtHe3 * sinh(fEtaHe3)', inplace=True)
+        df.eval('fPHe3 = fPtHe3 * cosh(fEtaHe3)', inplace=True)
+        df.eval('fEnHe3 = sqrt(fPHe3**2 + 2.8083916**2)', inplace=True)
+        df.eval('fEnHe4 = sqrt(fPHe3**2 + 3.7273794**2)', inplace=True)
+        # pi momentum
+        df.eval('fPxPi = fPtPi * cos(fPhiPi)', inplace=True)
+        df.eval('fPyPi = fPtPi * sin(fPhiPi)', inplace=True)
+        df.eval('fPzPi = fPtPi * sinh(fEtaPi)', inplace=True)
+        df.eval('fPPi = fPtPi * cosh(fEtaPi)', inplace=True)
+        df.eval('fEnPi = sqrt(fPPi**2 + 0.139570**2)', inplace=True)
+        # hypertriton momentum
+        df.eval('fPx = fPxHe3 + fPxPi', inplace=True)
+        df.eval('fPy = fPyHe3 + fPyPi', inplace=True)
+        df.eval('fPz = fPzHe3 + fPzPi', inplace=True)
+        df.eval('fP = sqrt(fPx**2 + fPy**2 + fPz**2)', inplace=True)
+        df.eval('fEn = fEnHe3 + fEnPi', inplace=True)
+        df.eval('fEn4 = fEnHe4 + fEnPi', inplace=True)
+        # Momentum variables to be stored
+        df.eval('fPt = sqrt(fPx**2 + fPy**2)', inplace=True)
+        df.eval('fEta = arccosh(fP/fPt)', inplace=True)
+        df.eval('fCosLambda = fPt/fP', inplace=True)
+        df.eval('fCosLambdaHe = fPtHe3/fPHe3', inplace=True)
+    
+        df['fNSigmaHe4'] = computeNSigmaHe4(df)
+    
+        # Variables of interest
+        df.eval('fDecLen = sqrt(fXDecVtx**2 + fYDecVtx**2 + fZDecVtx**2)', inplace=True)
+        if not isH4L:
+            df.eval('fCt = fDecLen * 2.99131 / fP', inplace=True)
+        else:
+            print('Using H4L decay length')
+            df.eval('fCt = fDecLen * 3.922 / fP', inplace=True)
+    
+        df.eval('fDecRad = sqrt(fXDecVtx**2 + fYDecVtx**2)', inplace=True)
+        df.eval('fCosPA = (fPx * fXDecVtx + fPy * fYDecVtx + fPz * fZDecVtx) / (fP * fDecLen)', inplace=True)
+        df.eval('fMassH3L = sqrt(fEn**2 - fP**2)', inplace=True)
+        df.eval('fMassH4L = sqrt(fEn4**2 - fP**2)', inplace=True)
+        print(df.columns)
+    
+        ## signed TPC mom
+        df.eval('fTPCSignMomHe3 = fTPCmomHe * (-1 + 2*fIsMatter)', inplace=True)
+        df.eval('fGloSignMomHe3 = fPHe3 / 2 * (-1 + 2*fIsMatter)', inplace=True)
+    
+        if "fITSclusterSizesHe" in df.columns:
+        ## loop over the candidates and compute the average cluster size
+            clSizesHe = df['fITSclusterSizesHe'].to_numpy()
+            clSizesPi = df['fITSclusterSizesPi'].to_numpy()
+            clSizeHeAvg = np.zeros(len(clSizesHe))
+            clSizePiAvg = np.zeros(len(clSizesPi))
+            nHitsHe = np.zeros(len(clSizesHe))
+            nHitsPi = np.zeros(len(clSizesPi))
+            for iLayer in range(7):
+                clSizeHeAvg += np.right_shift(clSizesHe, 4*iLayer) & 0b1111
+                clSizePiAvg += np.right_shift(clSizesPi, 4*iLayer) & 0b1111
+                nHitsHe += np.right_shift(clSizesHe, 4*iLayer) & 0b1111 > 0
+                nHitsPi += np.right_shift(clSizesPi, 4*iLayer) & 0b1111 > 0
+    
+            clSizeHeAvg = np.where(nHitsHe > 0, clSizeHeAvg / nHitsHe, clSizeHeAvg)
+            clSizePiAvg = np.where(nHitsPi > 0, clSizePiAvg / nHitsPi, clSizePiAvg)
+            df['fAvgClusterSizeHe'] = clSizeHeAvg
+            df['fAvgClusterSizePi'] = clSizePiAvg
+            df['nITSHitsHe'] = nHitsHe
+            df['nITSHitsPi'] = nHitsPi
+            df.eval('fAvgClSizeCosLambda = fAvgClusterSizeHe * fCosLambdaHe', inplace=True)
+    
+        if "fPsiFT0C" in df.columns:
+            df.eval('fPhi = arctan2(fPy, fPx)', inplace=True)
+            df.eval('fV2 = cos(2*(fPhi - fPsiFT0C))', inplace=True)
+    
+    
+        if isMC:
+            df.eval('fGenDecLen = sqrt(fGenXDecVtx**2 + fGenYDecVtx**2 + fGenZDecVtx**2)', inplace=True)
+            df.eval('fGenPz = fGenPt * sinh(fGenEta)', inplace=True)
+            df.eval('fGenP = sqrt(fGenPt**2 + fGenPz**2)', inplace=True)
+            df.eval("fAbsGenPt = abs(fGenPt)", inplace=True)
+    
+            if not isH4L:
+                df.eval('fGenCt = fGenDecLen * 2.99131 / fGenP', inplace=True)
+            else:
+                df.eval('fGenCt = fGenDecLen * 3.922 / fGenP', inplace=True)
+    
+    
+        # remove useless columns
+        df.drop(columns=['fPxHe3', 'fPyHe3', 'fPzHe3', 'fEnHe3', 'fPxPi', 'fPyPi', 'fPzPi', 'fPPi', 'fEnPi', 'fPx', 'fPy', 'fPz', 'fP', 'fEn'])
 
 
 def compute_pvalue_from_sign(significance):

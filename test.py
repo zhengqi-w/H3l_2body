@@ -1,31 +1,26 @@
 import ROOT
+import argparse
+import sys
+sys.path.append('utils')
+import utils as utils
 
-def load_all_trees(filename="AO2D.root",treename="O2hypcands"):
-    f = ROOT.TFile.Open(filename)
-    if not f or f.IsZombie():
-        raise RuntimeError(f"Cannot open file {filename}")
+def load_all_trees(file, chain, treename="O2hypcands"):
+    if not file or file.IsZombie():
+        raise RuntimeError(f"Cannot open file {file.GetName()}")
 
-    tree_paths = []
-    for key in f.GetListOfKeys():
-        obj = key.ReadObj()
-        if obj.InheritsFrom("TDirectory"):
-            if obj.Get(treename):
-                path = f"{obj.GetName()}/{treename}"
-                tree_paths.append(path)
-                print(f"Found tree: {path}")
+    for key in file.GetListOfKeys():
+        name_key = key.GetName()
+        if 'DF_' in name_key:
+            obj = key.ReadObj()
+            if obj.InheritsFrom("TDirectory"):
+                tree = obj.Get(treename)
+                if tree and tree.InheritsFrom("TTree"):
+                    print(f"Found TTree '{treename}' in directory: {name_key}")
+                    chain.Add(f"{file.GetName()}/{name_key}/{treename}")
+                else:
+                    print(f"No TTree named '{treename}' in directory: {name_key}")
+    return ROOT.RDataFrame(chain)
 
-    if not tree_paths:
-        raise RuntimeError(f"No tree {treename} found!")
-
-    # 使用 MultiChain 读取多个树
-    chain = ROOT.TChain(treename)
-    for path in tree_paths:
-        chain.Add(f"{filename}/{path}")
-    print(f"Total entries: {chain.GetEntries()}")
-
-    df = ROOT.RDataFrame(chain)
-    print(f"RDataFrame created with {df.Count().GetValue()} entries")
-    return df
 
 def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False):
     """
@@ -114,6 +109,29 @@ def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False
         # Note: bit-packed ITS cluster size unpacking and fNSigmaHe4 (which depends on python heBB)
         # are left out here because they require more complex per-row logic or access to python helper
         # functions. They can be added by registering a C++/python callable and using Define(...) if needed.
+        try:
+            rdf = rdf.Define("fAvgClusterSizeHe", "AvgITSClusterSize(fITSclusterSizesHe)") \
+                     .Define("nITSHitsHe", "CountITSHits(fITSclusterSizesHe)") \
+                     .Define("fAvgClusterSizePi", "AvgITSClusterSize(fITSclusterSizesPi)") \
+                     .Define("nITSHitsPi", "CountITSHits(fITSclusterSizesPi)") \
+                     .Define("fAvgClSizeCosLambda", "fAvgClusterSizeHe * fCosLambdaHe")
+        except Exception:
+            # ignore if columns not present or Define fails
+            pass
+        # remove temporary momentum/energy columns from the RDataFrame if possible
+        _cols_to_remove = ['fPxHe3', 'fPyHe3', 'fPzHe3', 'fEnHe3',
+                           'fPxPi', 'fPyPi', 'fPzPi', 'fPPi', 'fEnPi',
+                           'fPx', 'fPy', 'fPz', 'fP', 'fEn']
+        for _col in _cols_to_remove:
+            try:
+                rdf = rdf.RemoveColumn(_col)
+            except Exception:
+                # fallback: if RemoveColumn not available, redefine to a tiny dummy value
+                # to avoid keeping large intermediate arrays (silent if Define fails)
+                try:
+                    rdf = rdf.Define(_col, "0.")
+                except Exception:
+                    pass
 
         return rdf
 
@@ -122,8 +140,93 @@ def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False
     # (the original pandas implementation from this file should remain here;
     #  if it was above, keep it — otherwise implement the same operations on pandas)
     # For brevity return input if not RDataFrame; caller can rely on the old function body.
-    return df
-# df = ROOT.RDataFrame("O2hypcands", "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root")
-df = load_all_trees("/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root", "O2hypcands")
+    else:
+        return df
 
-rdf_corrected = correct_and_convert_df(df, calibrate_he3_pt=False, isMC=False, isH4L=False)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='Test RDataFrame processing and optional ITS helpers')
+    parser.add_argument('--file', '-f', help='Input ROOT file',
+                        default="/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root")
+    parser.add_argument('--treename', '-t', help='Tree name to search inside DF directories', default='O2hypcands')
+    args = parser.parse_args(argv)
+
+    file_ana = ROOT.TFile.Open(args.file)
+    if not file_ana or file_ana.IsZombie():
+        print(f"Could not open file: {args.file}", file=sys.stderr)
+        return 1
+
+    chain_ana = ROOT.TChain(args.treename)
+    rdf = load_all_trees(file_ana, chain_ana, args.treename)
+    try:
+        print(list(rdf.GetColumnNames()))
+        # evaluate and print number of entries in the RDataFrame (this triggers the action)
+        n_entries = int(rdf.Count().GetValue())
+        print(f"rdf entries: {n_entries}")
+    except Exception as e:
+        print(f"Error accessing RDataFrame columns/count: {e}", file=sys.stderr)
+
+    rdf_corrected = utils.correct_and_convert_df(rdf, calibrate_he3_pt=False, isMC=False, isH4L=False)
+    rdf_corrected = rdf_corrected.Filter("fNSigmaHe > -2.5 && fNSigmaHe < 2", "Apply basic nSigma cuts")
+    try:
+        print("columns after correction check:")
+        print(list(rdf_corrected.GetColumnNames()))
+        n_entries_corrected = int(rdf_corrected.Count().GetValue())
+        print(f"rdf_corrected entries: {n_entries_corrected}")
+    except Exception as e:
+        print(f"Error after correct_and_convert_df: {e}", file=sys.stderr)
+
+    # create 2D histogram fAvgClSizeCosLambda vs fPHe3 and save as PDF if columns present
+    cols = list(rdf_corrected.GetColumnNames())
+    if "fPHe3" not in cols or "fAvgClSizeCosLambda" not in cols:
+        print("Required columns not present: fPHe3 and/or fAvgClSizeCosLambda; skipping histogram creation")
+        return 0
+
+    # binning: adjust as needed
+    nbins_x, x_min, x_max = 100, 0.0, 10.0
+    nbins_y, y_min, y_max = 50, 0.0, 5.0
+
+    h2 = rdf_corrected.Histo2D(
+        ("h2_avgCls_vs_phe3", "fAvgClSizeCosLambda vs fPHe3;fPHe3 (GeV/c);fAvgClSizeCosLambda",
+         nbins_x, x_min, x_max, nbins_y, y_min, y_max),
+        "fPHe3", "fAvgClSizeCosLambda"
+    ).GetValue()
+
+    c = ROOT.TCanvas("c2", "c2", 900, 700)
+    c.SetLogz()
+    ROOT.gStyle.SetOptStat(0)
+    h2.Draw("COLZ")
+    outname = "fAvgClSizeCosLambda_vs_fPHe3.pdf"
+    c.SaveAs(outname)
+    print(f"Saved {outname}")
+
+    # plot 1D distribution of fNSigmaHe if present
+    if "fNSigmaHe" not in cols:
+        print("Column 'fNSigmaHe' not present in rdf_corrected; skipping 1D plot")
+        return 0
+
+    nbins, xmin, xmax = 200, -10.0, 10.0
+    h1 = rdf_corrected.Histo1D(("h1_fNSigmaHe", "fNSigmaHe; fNSigmaHe; Entries", nbins, xmin, xmax), "fNSigmaHe").GetValue()
+    c1 = ROOT.TCanvas("c1", "c1", 800, 600)
+    ROOT.gStyle.SetOptStat(1111)
+    h1.Draw()
+    outname1 = "fNSigmaHe.pdf"
+    c1.SaveAs(outname1)
+    print(f"Saved {outname1}")
+    print(f"fNSigmaHe: entries={int(h1.GetEntries())}, mean={h1.GetMean():.3f}, rms={h1.GetRMS():.3f}")
+    if "fAvgClusterSizeHe" not in cols:
+        print("Column 'fAvgClusterSizeHe' not present in rdf_corrected; skipping 1D plot")
+        return 0
+    nbins, xmin, xmax = 15, 0.0, 15
+    h1 = rdf_corrected.Histo1D(("h1_fAvgClusterSizeHe", "fAvgClusterSizeHe; fAvgClusterSizeHe; Entries", nbins, xmin, xmax), "fAvgClusterSizeHe").GetValue()
+    c1 = ROOT.TCanvas("c1", "c1", 800, 600)
+    ROOT.gStyle.SetOptStat(1111)
+    h1.Draw()
+    outname1 = "fAvgClusterSizeHe.pdf"
+    c1.SaveAs(outname1)
+    print(f"Saved {outname1}")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+
