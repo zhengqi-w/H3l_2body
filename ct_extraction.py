@@ -160,7 +160,7 @@ if __name__ == '__main__':
     print("** Loading data and apply preselections **")
 
     tree_names = ['O2datahypcands','O2hypcands', 'O2hypcandsflow']
-    tree_keys = uproot.open(input_file_name_data[0]).keys()
+    tree_keys = uproot.open(input_file_name_data).keys()
     for tree in tree_names:
         for key in tree_keys:
             if tree in key:

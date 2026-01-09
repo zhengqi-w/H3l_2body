@@ -3,6 +3,7 @@ import argparse
 import sys
 sys.path.append('utils')
 import utils as utils
+import numpy as np
 
 def load_all_trees(file, chain, treename="O2hypcands"):
     if not file or file.IsZombie():
@@ -146,7 +147,7 @@ def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Test RDataFrame processing and optional ITS helpers')
     parser.add_argument('--file', '-f', help='Input ROOT file',
-                        default="/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root")
+                        default="/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_CustomV0s.root")
     parser.add_argument('--treename', '-t', help='Tree name to search inside DF directories', default='O2hypcands')
     args = parser.parse_args(argv)
 
@@ -167,6 +168,30 @@ def main(argv=None):
 
     rdf_corrected = utils.correct_and_convert_df(rdf, calibrate_he3_pt=False, isMC=False, isH4L=False)
     rdf_corrected = rdf_corrected.Filter("fNSigmaHe > -2.5 && fNSigmaHe < 2", "Apply basic nSigma cuts")
+    # convert rdf_corrected to a numpy array (keep rdf_corrected unchanged)
+    try:
+        cols_to_convert = list(rdf_corrected.GetColumnNames())
+        # Ask RDataFrame to materialize columns as numpy arrays (PyROOT >= 6.22)
+        try:
+            arr_dict = rdf_corrected.AsNumpy(['fNSigmaHe'])
+        except TypeError:
+            # some ROOT versions expect a list/tuple explicitly
+            arr_dict = rdf_corrected.AsNumpy('fNSigmaHe')
+        # keep only scalar 1D columns for a clean 2D numpy array
+        scalar_cols = [c for c, a in arr_dict.items() if hasattr(a, "ndim") and a.ndim == 1]
+        if len(scalar_cols) == 0:
+            print("No scalar columns available to convert to numpy array")
+            np_array = None
+            np_colnames = []
+        else:
+            np_array = np.column_stack([np.asarray(arr_dict[c]) for c in scalar_cols])
+            np_colnames = scalar_cols
+            print(f"Converted rdf_corrected to numpy array with shape {np_array.shape}")
+    except Exception as e:
+        print(f"Failed to convert rdf_corrected to numpy array: {e}", file=sys.stderr)
+        np_array = None
+        np_colnames = []
+    exit()
     try:
         print("columns after correction check:")
         print(list(rdf_corrected.GetColumnNames()))

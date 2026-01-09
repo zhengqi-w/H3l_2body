@@ -174,22 +174,46 @@ def ndarray2roo(ndarray, var, name='data'):
 
 
 ### reweight a distribution with rejection sampling
-def reweight_pt_spectrum(df, var, distribution):
-    rej_flag = np.ones(len(df))
-    random_arr = np.random.rand(len(df))
-    max_bw = distribution.GetMaximum()
-    print(f'max_bw:{max_bw}')
+def reweight_pt_spectrum(df, var, distribution, is_rdf = False):
+    if not is_rdf:
+        rej_flag = np.ones(len(df))
+        random_arr = np.random.rand(len(df))
+        max_bw = distribution.GetMaximum()
+        print(f'max_bw:{max_bw}')
+    
+        for ind, (val, rand) in enumerate(zip(df[var],random_arr)):
+            frac = distribution.Eval(val)/max_bw
+            if rand > frac:
+                rej_flag[ind] = -1
+        ## check if it is a pandas dataframe
+        if isinstance(df, pd.DataFrame):
+            # df.loc[:, 'rej'] = rej_flag
+            df['rej'] = rej_flag
+            return
+        df._full_data_frame['rej'] = rej_flag
+    else:
+        # ensure TF1 is available from C++ side and create a unique name to reference it
+        dist_global_name = "__rw_pt_reweight"
+        distribution.SetName(dist_global_name)
+        try:
+            ROOT.gDirectory.Add(distribution)
+        except Exception:
+            # if adding to gDirectory fails, continue — TF1 may already be reachable
+            pass
 
-    for ind, (val, rand) in enumerate(zip(df[var],random_arr)):
-        frac = distribution.Eval(val)/max_bw
-        if rand > frac:
-            rej_flag[ind] = -1
-    ## check if it is a pandas dataframe
-    if isinstance(df, pd.DataFrame):
-        # df.loc[:, 'rej'] = rej_flag
-        df['rej'] = rej_flag
-        return
-    df._full_data_frame['rej'] = rej_flag
+        max_bw = float(distribution.GetMaximum())
+        if max_bw <= 0:
+            raise ValueError("The provided distribution has non-positive maximum.")
+
+        # build a C++ expression that performs rejection sampling per-row using gRandom and the TF1 from gDirectory
+        expr = (
+            '(((gRandom->Uniform()) > ((TF1*)gDirectory->Get("{name}"))->Eval({var})/{max_bw}) ? -1 : 1)'
+        ).format(name=dist_global_name, var=var, max_bw=max_bw)
+
+        # define the new column and return the new RDataFrame
+        df = df.Define("rej", expr)
+        return df
+        
 
 # create histogram for momentum correction
 
@@ -454,6 +478,23 @@ def correct_and_convert_df(df, calibrate_he3_pt = False, isMC=False, isH4L=False
     
         # remove useless columns
         df.drop(columns=['fPxHe3', 'fPyHe3', 'fPzHe3', 'fEnHe3', 'fPxPi', 'fPyPi', 'fPzPi', 'fPPi', 'fEnPi', 'fPx', 'fPy', 'fPz', 'fP', 'fEn'])
+
+def load_all_trees_to_chain(file, chain, treename="O2hypcands"):
+    if not file or file.IsZombie():
+        raise RuntimeError(f"Cannot open file {file.GetName()}")
+
+    for key in file.GetListOfKeys():
+        name_key = key.GetName()
+        if 'DF_' in name_key:
+            obj = key.ReadObj()
+            if obj.InheritsFrom("TDirectory"):
+                tree = obj.Get(treename)
+                if tree and tree.InheritsFrom("TTree"):
+                    print(f"Found TTree '{treename}' in directory: {name_key}")
+                    chain.Add(f"{file.GetName()}/{name_key}/{treename}")
+                else:
+                    print(f"No TTree named '{treename}' in directory: {name_key}")
+    return ROOT.RDataFrame(chain)
 
 
 def compute_pvalue_from_sign(significance):

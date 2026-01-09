@@ -1,14 +1,15 @@
-input_training_df_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep4/training_test"
-input_mc_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/AO2D.root"
-input_AnalysisResults_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/pass4/ep4/AnalysisResults.root"
-absorption_histo_file: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/absorption/absorption_histos_x1.5_pt_cen_50_80.root"
+input_training_df_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/training_test"
+input_mc_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D_V0s_full.root"
+# input_mc_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_V0s_full.root"
+input_AnalysisResults_file_path: "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AnalysisResults_HadronPID.root"
+absorption_histo_file: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/absorption/absorption_histos_x1.5_pt_cen_0_5.root"
 
 input_H3l_BWFit_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/H3l_2body_spectrum/utils/H3L_BWFit.root"
 
-output_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep4/spec_train"
+output_file_path: "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/spec_train"
 output_spectrm_file_name: "pt_analysis_pbpb"
 
-# cen_bins: [0,5]
+# cen_bins: [0,10]
 # pt_bins: [2, 3, 3.5, 4, 4.5, 5, 6, 8]
 # cen_bins: [5,10]
 # pt_bins: [2, 3, 3.5, 4, 4.5, 5, 6, 8]

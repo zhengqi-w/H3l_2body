@@ -17,15 +17,21 @@ import utils as utils
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D_CustomV0s.root"
-mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"
+# mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_CustomV0s.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11/AO2D_V0s_full.root"
 # mc_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/mc/apass5/LHC25g11_G4list/AO2D_V0s_full.root"
+
+# mc_file_path = "/Users/zhengqingwang/Downloads/AO2D_LHC25g11_V0s_full.root"
+# mc_file_path = "/Users/zhengqingwang/Downloads/AO2D_LHC25g11_CustomVertex.root"
+# mc_file_path = "/Users/zhengqingwang/Downloads/AO2D_LHC25g11_G4list_V0s_full.root"
+mc_file_path = "/Users/zhengqingwang/Downloads/AO2D_LHC25g11_G4list_CustomVertex.root"
 output_dir = "../../results/ep5/MC_QC"
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
-suffix = 'LHC25g11_G4list_CustomV0s'
-#suffix = 'LHC25g11_G4list'
-#suffix = 'LHC24i5_latest'
+# suffix = 'LHC25g11'
+# suffix = 'LHC25g11_CustomVertex'
+# suffix = 'LHC25g11_G4list'
+suffix = 'LHC25g11_G4list_CustomVertex'
 data_file_path = "/Users/zhengqingwang/alice/data/derived/Hypertriton_2body/LHC23_PbPb_fullTPC/apass5/AO2D_HadronPID.root"
 
 pt_bins = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8]
