@@ -162,6 +162,7 @@ spectra_maker.inv_mass_signal_func = signal_fit_func
 spectra_maker.inv_mass_bkg_func = bkg_fit_func
 spectra_maker.sigma_range_mc_to_data = sigma_range_mc_to_data
 spectra_maker.output_dir = output_dir_std
+spectra_maker.n_bins_mass_data = 40
 fit_range = [pt_bins[0], pt_bins[-1]]
 spectra_maker.fit_range = fit_range
 spectra_maker.make_spectra()

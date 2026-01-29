@@ -257,8 +257,8 @@ def getNEvents(an_files, is_trigger=False, cen_begin = None, cen_end = None):
             n_ev += zorro_summ.getNormalisationFactor(0)
         elif cen_begin is not None and cen_end is not None:
             histo = an_file.Get('hyper-reco-task').Get('hCentFT0C')
-            bin_begin = histo.FindBin(cen_begin)  
-            bin_end = histo.FindBin(cen_end)      
+            bin_begin = histo.FindBin(cen_begin + 1e-3)  
+            bin_end = histo.FindBin(cen_end - 1e-3)      
             n_ev += histo.Integral(bin_begin, bin_end)
         else:
             n_ev += an_file.Get('hyper-reco-task').Get('hZvtx').Integral()

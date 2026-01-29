@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
     # prepare output ROOT and h_tao_pt (tau in ps per pt bin)
     n_pt_bins = len(pt_bins) - 1
-    h_tao_pt = ROOT.TH1F('h_tao_pt', 'He3 lifetime #tau (ps) per Pt bin; Pt (GeV/c); #tau', n_pt_bins, np.array(pt_bins, dtype=np.float32))
+    h_tao_pt = ROOT.TH1F('h_tao_pt', f'lifetime #tau (ps) per p_{{T}} bin[{name_suffix} #sigma(He3)]; p_{{T}} (GeV/c); #tau', n_pt_bins, np.array(pt_bins, dtype=np.float32))
 
     # speed-of-light constant for ct->tau conversion
     c_cm_s = 2.99792458e10
@@ -447,7 +447,7 @@ if __name__ == "__main__":
         ax.set_xlabel('gentct')
         ax.set_ylabel('Counts/bin width')
         ax.set_yscale('log')
-        ax.set_title(f'gentct distribution pt: {pt_bins[i]:.1f}-{pt_bins[i+1]:.1f} GeV/c')
+        ax.set_title(f'gentct distribution pt: {pt_bins[i]:.1f}-{pt_bins[i+1]:.1f} GeV/c [{name_suffix} σ(He3)]')
         ax.legend()
         plt.savefig(f'{fig_path}/gentct_distribution_pt{i}.pdf')
         plt.close()

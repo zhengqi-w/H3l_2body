@@ -59,6 +59,7 @@ class SpectraMaker:
         self.h_raw_counts = None
         self.h_efficiency = None
         self.h_efficiency_raw = None
+        self.h_bdt_efficiency = None
         self.h_corrected_counts = None
 
         # cuts for systematic uncertainties
@@ -205,6 +206,9 @@ class SpectraMaker:
                                       len(self.bins) - 1, np.array(self.bins, dtype=np.float64))
         self.h_efficiency_raw = ROOT.TH1D('h_efficiency_raw', f';{x_label};{y_eff_raw_label}', 
                                       len(self.bins) - 1, np.array(self.bins, dtype=np.float64))
+        if self.bdt_efficiency:
+            self.h_bdt_efficiency = ROOT.TH1D('h_bdt_efficiency', f';{x_label};BDT efficiency', 
+                                          len(self.bins) - 1, np.array(self.bins, dtype=np.float64))
         self.h_corrected_counts = ROOT.TH1D('h_corrected_counts', f';{x_label};{y_corr_label}', 
                                             len(self.bins) - 1, np.array(self.bins, dtype=np.float64))
         self.h_corrected_counts.GetXaxis().SetTitleSize(0.05)
@@ -233,9 +237,13 @@ class SpectraMaker:
             if self.bdt_efficiency:
                 local_corrected_counts = local_corrected_counts / self.bdt_efficiency[ibin]
                 local_corrected_counts_err = local_corrected_counts_err / self.bdt_efficiency[ibin]
+                self.h_bdt_efficiency.SetBinContent(ibin + 1, self.bdt_efficiency[ibin])
             if self.var == 'fPt':
                 local_corrected_counts = local_corrected_counts / self.n_ev / self.branching_ratio / self.delta_rap / signal_loss_corr * event_loss_corr
                 local_corrected_counts_err = local_corrected_counts_err / self.n_ev / self.branching_ratio / self.delta_rap / signal_loss_corr * event_loss_corr
+            if self.is_matter == 'both':
+                local_corrected_counts = local_corrected_counts / 2
+                local_corrected_counts_err = local_corrected_counts_err / 2
             self.h_corrected_counts.SetBinContent(ibin + 1, local_corrected_counts)
             self.h_corrected_counts.SetBinError(ibin + 1, local_corrected_counts_err)
             self.corrected_counts.append(local_corrected_counts)
@@ -266,12 +274,15 @@ class SpectraMaker:
         self.h_efficiency = None
         self.h_efficiency_raw = None
         self.h_corrected_counts = None
+        self.h_bdt_efficiency = None
 
     def dump_to_output_dir(self):
         self.output_dir.cd()
         self.h_raw_counts.Write()
         self.h_efficiency.Write()
         self.h_efficiency_raw.Write()
+        if self.h_bdt_efficiency is not None:
+            self.h_bdt_efficiency.Write()
         if self.h_absorption is not None:
             self.h_absorption.Write()
         if isinstance(self.h_corrected_counts, list):

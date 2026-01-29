@@ -131,8 +131,8 @@ static TGraphErrors* HistToGraph(const TH1* hist, const std::string& name) {
     auto* g = new TGraphErrors(hist->GetNbinsX());
     g->SetName(name.c_str());
     for (int i = 1; i <= hist->GetNbinsX(); ++i) {
-        g->SetPoint(i - 1, hist->GetBinCenter(i), hist->GetBinContent(i) / 2);
-        g->SetPointError(i - 1, 0.0, hist->GetBinError(i) / 2);
+        g->SetPoint(i - 1, hist->GetBinCenter(i), hist->GetBinContent(i));
+        g->SetPointError(i - 1, 0.0, hist->GetBinError(i));
     }
     return g;
 }
@@ -198,7 +198,7 @@ void SpectrumVsRun2Lite() {
 
     std::vector<LiteSpec> specs = {
         {"0_10",
-         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/spec_trainboth/cen0-10/pt_analysis_pbpb_g11_full.root",
+         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/ROOTWorkFlow/Outputs/LHC23_PbPb_pass5_V0s_HadronPID/BdtSpectrum_LHC25g11_G4list/cen0-10/pt_analysis_pbpb.root",
          "/Users/zhengqingwang/alice/data/h3l_spec_run2/h3l_0_10.root",
          "Graph1D_y1",
          "h_corrected_counts",
@@ -206,7 +206,7 @@ void SpectrumVsRun2Lite() {
          "(Anti)hypertriton spectrum in 0-10% V0M centrality class",
          "BlastWave_H3L_0_10"},
         {"10_30",
-         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/spec_trainboth/cen10-30/pt_analysis_pbpb.root",
+         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/ROOTWorkFlow/Outputs/LHC23_PbPb_pass5_V0s_HadronPID/BdtSpectrum_LHC25g11_G4list/cen10-30/pt_analysis_pbpb.root",
          "/Users/zhengqingwang/alice/data/h3l_spec_run2/h3l_10_30.root",
          "Graph1D_y1",
          "h_corrected_counts",
@@ -214,7 +214,7 @@ void SpectrumVsRun2Lite() {
          "(Anti)hypertriton spectrum in 10-30% V0M centrality class",
          "BlastWave_H3L_10_30"},
         {"30_50",
-         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/spec_trainboth/cen30-50/pt_analysis_pbpb.root",
+         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/ROOTWorkFlow/Outputs/LHC23_PbPb_pass5_V0s_HadronPID/BdtSpectrum_LHC25g11_G4list/cen30-50/pt_analysis_pbpb.root",
          "/Users/zhengqingwang/alice/data/h3l_spec_run2/h3l_30_50.root",
          "Graph1D_y1",
          "h_corrected_counts",
@@ -222,7 +222,7 @@ void SpectrumVsRun2Lite() {
          "(Anti)hypertriton spectrum in 30-50% V0M centrality class",
          "BlastWave_H3L_30_50"},
         {"50_80",
-         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/results/ep5/spec_trainboth/cen50-80/pt_analysis_pbpb.root",
+         "/Users/zhengqingwang/alice/run3task/H3l_2body_spectrum/ROOTWorkFlow/Outputs/LHC23_PbPb_pass5_V0s_HadronPID/BdtSpectrum_LHC25g11_G4list/cen50-80/pt_analysis_pbpb.root",
          "", // skip Run2 spectrum here
          "",
          "h_corrected_counts",
@@ -316,7 +316,7 @@ void SpectrumVsRun2Lite() {
         double headerY = isPeripheral ? 0.87 : std::min(legY2 + 0.025, 0.95);
         header.DrawLatex(headerX, headerY, "LHC23_PbPb_pass5");
 
-        std::string out = outputDir + "/H3l_run3_apass5_vs_run2_lite_" + spec.label + ".pdf";
+        std::string out = outputDir + "/H3l_run3_apass5_vs_run2_lite_" + spec.label + "_cppV0s_LHC25g11_G4list" + ".pdf";
         c.SaveAs(out.c_str());
     }
 }

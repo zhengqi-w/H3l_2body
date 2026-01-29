@@ -756,7 +756,7 @@ if __name__ == '__main__':
             f_root.SetParameter(1, tau_val if 'tau_val' in locals() else 1.0)
 
             # create canvas and style
-            c = ROOT.TCanvas(f'c_ct_fit_root_pt_{pt_min}_{pt_max}', f'CT fit pt {pt_min}-{pt_max}', 800, 550)
+            c = ROOT.TCanvas(f'c_ct_fit_root_pt_{pt_min}_{pt_max}', f'CT fit pt {pt_min}-{pt_max} (fIsMatter={is_matter})', 800, 550)
             c.SetLeftMargin(0.14)
             c.SetBottomMargin(0.12)
             c.SetTopMargin(0.08)
@@ -770,7 +770,7 @@ if __name__ == '__main__':
             h.SetLineColor(ROOT.kBlue+1)
             h.SetMarkerStyle(20)
             h.SetMarkerSize(0.8)
-            h.SetTitle(f'Corrected ct spectrum pt {pt_min} - {pt_max} GeV/c')
+            h.SetTitle(f'Corrected ct spectrum pt {pt_min} - {pt_max} GeV/c ({is_matter})')
             h.GetXaxis().SetTitle('ct (cm)')
             h.GetYaxis().SetTitle('Corrected counts')
             h.GetXaxis().SetTitleSize(0.045)
@@ -920,37 +920,109 @@ if __name__ == '__main__':
             plt.close(fig)
         except Exception as _e:
             print(f"Integral-fit QA failed for pt {pt_min}-{pt_max}: {_e}")
-    # Save tau histograms to ROOT file
+    # Save tau histograms to ROOT file (and also export a plain PDF)
     output_dir_std.cd()
+    # make tau_hist plain: simple title, plain axis labels, no stat box
+    tau_hist.SetTitle(f'Fitted #tau per pT bin ({is_matter})')
+    tau_hist.GetXaxis().SetTitle('p_{T} (GeV/c)')
+    tau_hist.GetYaxis().SetTitle('#tau (ps)')
+    tau_hist.SetLineColor(ROOT.kBlack)
+    tau_hist.SetMarkerStyle(20)
+    tau_hist.SetMarkerColor(ROOT.kBlack)
+    tau_hist.SetStats(False)
     tau_hist.Write()
+    # tau_err_hist: keep simple as well
+    tau_err_hist.SetTitle(f'Tau error per pT bin ({is_matter})')
+    tau_err_hist.GetXaxis().SetTitle('p_{T} (GeV/c)')
+    tau_err_hist.GetYaxis().SetTitle('#Delta#tau (ps)')
+    tau_err_hist.SetLineColor(ROOT.kBlack)
+    tau_err_hist.SetMarkerStyle(20)
+    tau_err_hist.SetMarkerColor(ROOT.kBlack)
+    tau_err_hist.SetStats(False)
     tau_err_hist.Write()
+
+    # also save a plain PDF for quick viewing
+    try:
+        c_tau = ROOT.TCanvas('c_tau_plain', f'Fitted #tau (fIsMatter={is_matter})', 800, 600)
+        c_tau.SetLeftMargin(0.14); c_tau.SetBottomMargin(0.12); c_tau.SetTopMargin(0.08)
+        tau_hist.Draw('E P')
+        c_tau.SaveAs(f"{output_dir_name}/tau_per_ptbin_plain.pdf")
+        c_tau.Close()
+    except Exception:
+        pass
 
     # --- QA plots for raw_counts, acceptance, BDT_efficiency ---
     for i_dx, (arr, arr_err, name, ylabel) in enumerate([
         (raw_counts_arr, raw_counts_err_arr, 'raw_counts', 'Raw counts'),
-        (acceptance_arr, None, 'acceptance', 'Acceptance'),
+        (acceptance_arr, None, 'acceptance', 'Efficiency #times Accptance'),
         (BDT_efficiency_arr, None, 'BDT_efficiency', 'BDT efficiency')
     ]):
         for i_pt_qa in range(len(pt_bins)-1):
-            plt.figure(figsize=(8,6))
             ct_centers = [0.5*(ct_bins[i_pt_qa][i]+ct_bins[i_pt_qa][i+1]) for i in range(len(ct_bins[i_pt_qa])-1)]
             values = arr[i_pt_qa]
             errors = arr_err[i_pt_qa] if arr_err is not None else None
             label = f'Pt {pt_bins[i_pt_qa]}-{pt_bins[i_pt_qa+1]}'
-            # print("ct centers:", ct_centers)
-            # print("values:", values)
-            if errors is not None:
-                plt.errorbar(ct_centers, values, yerr=errors, fmt='o', label=label)
+
+            # Use ROOT for acceptance and BDT efficiency QA plots (styled)
+            if name in ('acceptance', 'BDT_efficiency'):
+                from array import array
+                xa = array('d', ct_centers)
+                ya = array('d', [float(v) for v in values])
+                if errors is not None:
+                    yaerr = array('d', [float(e) for e in errors])
+                    zerox = array('d', [0.0]*len(xa))
+                    gr = ROOT.TGraphErrors(len(xa), xa, ya, zerox, yaerr)
+                else:
+                    gr = ROOT.TGraph(len(xa), xa, ya)
+
+                pt_min = pt_bins[i_pt_qa]
+                pt_max = pt_bins[i_pt_qa+1]
+                ct_min = ct_bins[i_pt_qa][0]
+                ct_max = ct_bins[i_pt_qa][-1]
+                c = ROOT.TCanvas(f'c_QA_{name}_pt_{pt_min}_{pt_max}_ct_{ct_min}_{ct_max}', f'QA {name} pt {pt_min}-{pt_max} ct {ct_min}-{ct_max} (fIsMatter={is_matter})', 900, 600)
+                c.SetLeftMargin(0.14); c.SetBottomMargin(0.12); c.SetTopMargin(0.08); c.SetRightMargin(0.05)
+                ROOT.gStyle.SetOptStat(0)
+                gr.SetMarkerStyle(20)
+                gr.SetMarkerSize(1.0)
+                gr.SetLineWidth(2)
+                # distinct colors and dashed line for acceptance vs BDT efficiency
+                if name == 'acceptance':
+                    col = ROOT.kBlue+1
+                else:
+                    col = ROOT.kGreen+2
+                gr.SetMarkerColor(col)
+                gr.SetLineColor(col)
+                gr.SetLineStyle(2)  # dashed line connecting points
+                gr.GetXaxis().SetTitle('ct (cm)')
+                gr.GetYaxis().SetTitle(ylabel)
+                gr.GetXaxis().SetTitleSize(0.045)
+                gr.GetYaxis().SetTitleSize(0.045)
+                # set y range for acceptance and BDT efficiency plots
+                if name == 'acceptance':
+                    gr.GetYaxis().SetRangeUser(0.0, 0.4)
+                elif name == 'BDT_efficiency':
+                    gr.GetYaxis().SetRangeUser(0.5, 1.0)
+                gr.Draw('APL')
+                ROOT.gPad.SetGridx(); ROOT.gPad.SetGridy()
+                # no horizontal reference line for BDT efficiency
+                # save and close
+                c.SaveAs(f"{output_dir_name}/QA_fig_{name}_pt_{pt_bins[i_pt_qa]}_{pt_bins[i_pt_qa+1]}.pdf")
+                c.Close()
             else:
-                plt.plot(ct_centers, values, marker='o', label=label)
-            plt.xlabel('ct (cm)')
-            plt.ylabel(ylabel)
-            plt.title(f'{ylabel} vs ct')
-            plt.legend()
-            plt.grid(True, linestyle='--', alpha=0.5)
-            plt.tight_layout()
-            plt.savefig(f"{output_dir_name}/QA_fig_{name}_pt_{pt_bins[i_pt_qa]}_{pt_bins[i_pt_qa+1]}.pdf")
-            plt.close()
+                # raw_counts: keep matplotlib plotting
+                plt.figure(figsize=(8,6))
+                if errors is not None:
+                    plt.errorbar(ct_centers, values, yerr=errors, fmt='o', label=label)
+                else:
+                    plt.plot(ct_centers, values, marker='o', label=label)
+                plt.xlabel('ct (cm)')
+                plt.ylabel(ylabel)
+                plt.title(f'{ylabel} vs ct')
+                plt.legend()
+                plt.grid(True, linestyle='--', alpha=0.5)
+                plt.tight_layout()
+                plt.savefig(f"{output_dir_name}/QA_fig_{name}_pt_{pt_bins[i_pt_qa]}_{pt_bins[i_pt_qa+1]}.pdf")
+                plt.close()
     print("** ct analysis done. ** \n")
 
 
